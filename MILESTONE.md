@@ -73,17 +73,20 @@ Ship vs Meteoroid: lose 1 life.
 
 ✅ Acceptance: Projectiles hit rocks and destroy them, ship loses life on collision.
 
-Milestone 6 — Spawning & Drift
 
-Goal: Implement meteoroid spawning and difficulty ramp.
+Milestone 6 — Spawning & Drift (corrected)
 
-Spawn arc (10→2 o’clock).
+Goal: have 3 meteoroid types spawn from top, drifting down.
 
-Drift formula from doc (driftAmp).
+Type weighting: choose meteoroid type via configured weight.
 
-Increase spawn rate + speed over time.
+Safety margin: avoid spawning within a radius around the player.
 
-✅ Acceptance: Rocks spawn at top and drift; difficulty ramps smoothly.
+
+✅ Acceptance:
+
+No unfair spawns inside the player’s safety radius.
+
 
 Milestone 7 — Power-Ups (3 Types)
 
