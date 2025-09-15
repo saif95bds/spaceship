@@ -41,13 +41,13 @@
   "projectile": {
     "speed": 900,
     "fireRate": 3.0,
-    "sprite": "assets/bullets/basic.png",
+    "sprite": "assets/projectiles/basic.svg",
     "impactFx": { "enabled": true, "particles": true, "flash": true, "durationMs": 150 }
   },
   "spawn": {
     "arcDegrees": { "start": 300, "end": 60 },
     "margin": 40,
-    "basePerSecond": 0.9,
+    "basePerSecond": 5,
     "rateRamp": { "type": "exp", "k": 0.06 }
   },
   "meteoroids": [
@@ -56,7 +56,7 @@
       "images": { "L": "assets/rocks/basalt_l.png", "M": "assets/rocks/basalt_m.png", "S": "assets/rocks/basalt_s.png" },
       "hp": { "L": 3, "M": 2, "S": 1 },
       "split": { "L": [2, "M"], "M": [2, "S"], "S": null },
-      "speed": { "min": 80, "max": 200 },
+      "speed": { "min": 2, "max": 6 },
       "spin": { "min": -90, "max": 90 },
       "weight": 1.0,
       "collision": { "radiusScale": 0.9 }
@@ -95,5 +95,5 @@
     "maxSpriteSizePx": 256,
     "policy": "If a loaded image exceeds maxSpriteSizePx or its category target (e.g., ship.spriteTargetPx), scale it down at load time while preserving aspect ratio."
   },
-  "background": { "image": null, "fallback": { "type": "starfield", "density": 0.002 } }
+  "background": { "image": "assets/backgrounds/nebula.png", "fallback": { "type": "starfield", "density": 0.002 } }
 }
