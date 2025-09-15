@@ -40,14 +40,14 @@
   },
   "projectile": {
     "speed": 900,
-    "fireRate": 3.0,
+    "fireRate": 6.0,
     "sprite": "assets/projectiles/basic.svg",
     "impactFx": { "enabled": true, "particles": true, "flash": true, "durationMs": 150 }
   },
   "spawn": {
     "arcDegrees": { "start": 300, "end": 60 },
     "margin": 40,
-    "basePerSecond": 5,
+    "basePerSecond": 2,
     "rateRamp": { "type": "exp", "k": 0.06 }
   },
   "meteoroids": [
@@ -56,7 +56,7 @@
       "images": { "L": "assets/rocks/basalt_l.png", "M": "assets/rocks/basalt_m.png", "S": "assets/rocks/basalt_s.png" },
       "hp": { "L": 3, "M": 2, "S": 1 },
       "split": { "L": [2, "M"], "M": [2, "S"], "S": null },
-      "speed": { "min": 2, "max": 6 },
+      "speed": { "min": 1, "max": 3 },
       "spin": { "min": -90, "max": 90 },
       "weight": 1.0,
       "collision": { "radiusScale": 0.9 }
