@@ -1,5 +1,8 @@
 import { GameConfig } from '../types/config';
 import { Ship } from '../entities/Ship';
+import { Projectile } from '../entities/Projectile';
+import { Meteoroid } from '../entities/Meteoroid';
+import { ParticleSystem } from './particles';
 
 interface Star {
   x: number;
@@ -15,12 +18,41 @@ export class RenderSystem {
   private config: GameConfig;
   private stars: Star[] = [];
   private time: number = 0;
+  private backgroundImage: HTMLImageElement | null = null;
+  private backgroundImageLoaded: boolean = false;
+  private backgroundImageFailed: boolean = false;
 
   constructor(canvas: HTMLCanvasElement, ctx: CanvasRenderingContext2D, config: GameConfig) {
     this.canvas = canvas;
     this.ctx = ctx;
     this.config = config;
     this.generateStarfield();
+    this.loadBackgroundImage();
+  }
+
+  private loadBackgroundImage() {
+    if (this.config.background.image) {
+      console.log(`[RenderSystem] Loading background image: ${this.config.background.image}`);
+      
+      this.backgroundImage = new Image();
+      
+      this.backgroundImage.onload = () => {
+        console.log(`[RenderSystem] ✅ Background image loaded successfully: ${this.config.background.image}`);
+        this.backgroundImageLoaded = true;
+        this.backgroundImageFailed = false;
+      };
+      
+      this.backgroundImage.onerror = () => {
+        console.warn(`[RenderSystem] ❌ Failed to load background image: ${this.config.background.image}`);
+        console.warn(`[RenderSystem] 🔄 Falling back to procedural starfield`);
+        this.backgroundImageLoaded = false;
+        this.backgroundImageFailed = true;
+      };
+      
+      this.backgroundImage.src = this.config.background.image;
+    } else {
+      console.log(`[RenderSystem] No background image configured, using fallback: ${this.config.background.fallback.type}`);
+    }
   }
 
   private generateStarfield() {
@@ -44,18 +76,18 @@ export class RenderSystem {
     this.generateStarfield();
   }
 
-  public render(ship: Ship, deltaTime: number) {
+  public render(ship: Ship, projectiles: Projectile[], meteoroids: Meteoroid[], particleSystem: ParticleSystem, deltaTime: number) {
     this.time += deltaTime;
     this.clearCanvas();
     
     // Layer 1: Background
     this.renderBackground();
     
-    // Layer 2: Entities
-    this.renderEntities(ship);
+    // Layer 2: Entities and Effects
+    this.renderEntities(ship, projectiles, meteoroids, particleSystem);
     
     // Layer 3: HUD
-    this.renderHUD();
+    this.renderHUD(ship);
   }
 
   private clearCanvas() {
@@ -63,42 +95,69 @@ export class RenderSystem {
   }
 
   private renderBackground() {
-    // Fill with dark space background
-    this.ctx.fillStyle = '#0a0a1a';
-    this.ctx.fillRect(0, 0, this.canvas.width, this.canvas.height);
+    if (this.backgroundImageLoaded && this.backgroundImage) {
+      // Render custom background image
+      this.ctx.drawImage(this.backgroundImage, 0, 0, this.canvas.width, this.canvas.height);
+    } else {
+      // Fill with dark space background
+      this.ctx.fillStyle = '#0a0a1a';
+      this.ctx.fillRect(0, 0, this.canvas.width, this.canvas.height);
 
-    // Render starfield
-    this.ctx.fillStyle = '#ffffff';
-    for (const star of this.stars) {
-      // Calculate twinkling effect
-      const twinkle = Math.sin(this.time * star.twinkleSpeed + star.twinklePhase) * 0.3 + 0.7;
-      const alpha = star.brightness * twinkle;
-      
-      this.ctx.globalAlpha = alpha;
-      this.ctx.fillRect(star.x, star.y, 1, 1);
-      
-      // Add a subtle glow for brighter stars
-      if (star.brightness > 0.7) {
-        this.ctx.globalAlpha = alpha * 0.3;
-        this.ctx.fillRect(star.x - 0.5, star.y - 0.5, 2, 2);
+      // Render starfield fallback
+      this.ctx.fillStyle = '#ffffff';
+      for (const star of this.stars) {
+        // Calculate twinkling effect
+        const twinkle = Math.sin(this.time * star.twinkleSpeed + star.twinklePhase) * 0.3 + 0.7;
+        const alpha = star.brightness * twinkle;
+        
+        this.ctx.globalAlpha = alpha;
+        this.ctx.fillRect(star.x, star.y, 1, 1);
+        
+        // Add a subtle glow for brighter stars
+        if (star.brightness > 0.7) {
+          this.ctx.globalAlpha = alpha * 0.3;
+          this.ctx.fillRect(star.x - 0.5, star.y - 0.5, 2, 2);
+        }
       }
+      
+      this.ctx.globalAlpha = 1.0; // Reset alpha
+    }
+  }
+
+  private renderEntities(ship: Ship, projectiles: Projectile[], meteoroids: Meteoroid[], particleSystem: ParticleSystem) {
+    // Render meteoroids (behind other entities)
+    for (const meteoroid of meteoroids) {
+      meteoroid.render(this.ctx);
     }
     
-    this.ctx.globalAlpha = 1.0; // Reset alpha
-  }
-
-  private renderEntities(ship: Ship) {
-    // Render ship
-    ship.render(this.ctx);
+    // Render projectiles
+    for (const projectile of projectiles) {
+      projectile.render(this.ctx);
+    }
     
-    // Future: meteoroids, projectiles, power-ups will be rendered here
+    // Render particles (impact effects)
+    particleSystem.render(this.ctx);
+    
+    // Render ship (on top)
+    ship.render(this.ctx);
   }
 
-  private renderHUD() {
+  private renderHUD(ship: Ship) {
     // HUD placeholder text
     this.ctx.fillStyle = '#ffffff';
     this.ctx.font = '20px Arial, sans-serif';
     this.ctx.textAlign = 'left';
+    
+    // Lives (top-left) - show red heart symbols
+    const heartSymbol = '♥';
+    let livesDisplay = '';
+    for (let i = 0; i < ship.lives; i++) {
+      livesDisplay += heartSymbol;
+      if (i < ship.lives - 1) livesDisplay += ' '; // Add space between hearts
+    }
+    this.ctx.fillStyle = '#ff0000'; // Red color for hearts
+    this.ctx.fillText(livesDisplay, 20, 30);
+    this.ctx.fillStyle = '#ffffff'; // Reset to white for other text
     
     // Score (top-right area)
     this.ctx.textAlign = 'right';

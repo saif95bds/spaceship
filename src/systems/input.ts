@@ -8,8 +8,9 @@ export interface InputState {
 
 export class InputSystem {
   private keys: Set<string> = new Set();
-  private touchStartPos: { x: number; y: number } | null = null;
   private currentTouchPos: { x: number; y: number } | null = null;
+  private previousTouchPos: { x: number; y: number } | null = null;
+  private touchMovementDelta: { x: number; y: number } = { x: 0, y: 0 };
   private isPaused = false;
   private canvas: HTMLCanvasElement;
 
@@ -35,24 +36,34 @@ export class InputSystem {
     this.canvas.addEventListener('touchstart', (e) => {
       e.preventDefault();
       const touch = e.touches[0];
-      this.touchStartPos = { x: touch.clientX, y: touch.clientY };
       this.currentTouchPos = { x: touch.clientX, y: touch.clientY };
+      this.previousTouchPos = { x: touch.clientX, y: touch.clientY };
+      this.touchMovementDelta = { x: 0, y: 0 };
       this.isPaused = false;
     });
 
     this.canvas.addEventListener('touchmove', (e) => {
       e.preventDefault();
-      if (this.touchStartPos) {
+      if (this.currentTouchPos) {
         const touch = e.touches[0];
+        // Store previous position
+        this.previousTouchPos = { ...this.currentTouchPos };
+        // Update current position
         this.currentTouchPos = { x: touch.clientX, y: touch.clientY };
+        // Calculate movement delta
+        this.touchMovementDelta = {
+          x: this.currentTouchPos.x - this.previousTouchPos.x,
+          y: this.currentTouchPos.y - this.previousTouchPos.y
+        };
       }
     });
 
     this.canvas.addEventListener('touchend', (e) => {
       e.preventDefault();
-      this.touchStartPos = null;
       this.currentTouchPos = null;
-      this.isPaused = true; // Pause on lift as per requirements
+      this.previousTouchPos = null;
+      this.touchMovementDelta = { x: 0, y: 0 };
+      this.isPaused = true; // Pause on finger lift as per requirements
     });
   }
 
@@ -74,15 +85,15 @@ export class InputSystem {
       y += 1;
     }
 
-    // Touch input (drag joystick)
-    if (this.touchStartPos && this.currentTouchPos) {
-      const dx = this.currentTouchPos.x - this.touchStartPos.x;
-      const dy = this.currentTouchPos.y - this.touchStartPos.y;
+    // Touch input (movement delta)
+    if (this.currentTouchPos) {
+      // Use movement delta for natural touch control
+      const sensitivity = 0.1; // Adjust sensitivity as needed
+      x = Math.max(-1, Math.min(1, this.touchMovementDelta.x * sensitivity));
+      y = Math.max(-1, Math.min(1, this.touchMovementDelta.y * sensitivity));
       
-      // Normalize touch input to -1 to 1 range
-      const maxDistance = 100; // Max drag distance in pixels
-      x = Math.max(-1, Math.min(1, dx / maxDistance));
-      y = Math.max(-1, Math.min(1, dy / maxDistance));
+      // Reset delta after reading it
+      this.touchMovementDelta = { x: 0, y: 0 };
     }
 
     // Normalize diagonal movement

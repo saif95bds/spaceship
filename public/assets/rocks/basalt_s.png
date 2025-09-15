@@ -1,0 +1,18 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 32 32">
+  <defs>
+    <radialGradient id="rockGradS" cx="0.3" cy="0.3">
+      <stop offset="0%" stop-color="#999999"/>
+      <stop offset="100%" stop-color="#444444"/>
+    </radialGradient>
+  </defs>
+  <!-- Main rock shape -->
+  <polygon points="16,1 25,5 29,13 27,24 21,29 11,30 4,25 2,17 6,9 13,3" 
+           fill="url(#rockGradS)" stroke="#333" stroke-width="1"/>
+  <!-- Rock details/craters -->
+  <circle cx="10" cy="10" r="2" fill="#333333" opacity="0.6"/>
+  <circle cx="23" cy="17" r="1.5" fill="#333333" opacity="0.6"/>
+  <circle cx="17" cy="25" r="1" fill="#333333" opacity="0.6"/>
+  <!-- Surface texture -->
+  <polygon points="8,13 12,11 10,17" fill="#555555" opacity="0.4"/>
+  <polygon points="20,7 25,10 23,14" fill="#555555" opacity="0.4"/>
+</svg>
