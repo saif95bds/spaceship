@@ -1,0 +1,12 @@
+{
+  "ship": {
+    "controlMode": "direct",
+    "autoFire": true,
+    "moveSpeed": 480,
+    "lives": { "start": 3, "max": 5 }
+  },
+  "projectile": {
+    "speed": 900,
+    "fireRate": 3.0
+  }
+}

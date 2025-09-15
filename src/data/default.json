@@ -1,0 +1,94 @@
+{
+  "ship": {
+    "controlMode": "direct",
+    "autoFire": true,
+    "moveSpeed": 480,
+    "lives": { "start": 3, "max": 5 },
+    "skins": {
+      "default": "assets/ships/base.png",
+      "rapidFire": {
+        "1": "assets/ships/base_rf1.png",
+        "2": "assets/ships/base_rf2.png",
+        "3": "assets/ships/base_rf3.png",
+        "4": "assets/ships/base_rf4.png"
+      }
+    },
+    "collision": {
+      "radiusScale": 0.9,
+      "ring": {
+        "enabled": true,
+        "alphaMin": 0.12,
+        "alphaMax": 0.2,
+        "pulseHz": 1.0,
+        "colorByState": {
+          "default": "#FFFFFF",
+          "rapidFire": "#00FFFF",
+          "scoreMultiplier": "#FFD700",
+          "+1life": "#32CD32"
+        },
+        "showOnStartMs": 2000,
+        "alwaysShow": false,
+        "debugOnly": false
+      }
+    },
+    "spriteTargetPx": 128
+  },
+  "projectile": {
+    "speed": 900,
+    "fireRate": 3.0,
+    "sprite": "assets/bullets/basic.png",
+    "impactFx": { "enabled": true, "particles": true, "flash": true, "durationMs": 150 }
+  },
+  "spawn": {
+    "arcDegrees": { "start": 300, "end": 60 },
+    "margin": 40,
+    "basePerSecond": 0.9,
+    "rateRamp": { "type": "exp", "k": 0.06 }
+  },
+  "meteoroids": [
+    {
+      "id": "basalt",
+      "images": { "L": "assets/rocks/basalt_l.png", "M": "assets/rocks/basalt_m.png", "S": "assets/rocks/basalt_s.png" },
+      "hp": { "L": 3, "M": 2, "S": 1 },
+      "split": { "L": [2, "M"], "M": [2, "S"], "S": null },
+      "speed": { "min": 80, "max": 200 },
+      "spin": { "min": -90, "max": 90 },
+      "weight": 1.0,
+      "collision": { "radiusScale": 0.9 }
+    }
+  ],
+  "drift": { "A0": 10, "Amax": 120, "k": 0.05, "omegaRange": [0.6, 1.2] },
+  "powerUps": {
+    "resetOnDeath": false,
+    "+1life": { "enabled": true },
+    "rapidFire": {
+      "maxLevel": 4,
+      "skins": { "1": "assets/ships/base_rf1.png", "2": "assets/ships/base_rf2.png", "3": "assets/ships/base_rf3.png", "4": "assets/ships/base_rf4.png" },
+      "levels": {
+        "1": { "fireRate": 3.5, "barrels": 1 },
+        "2": { "fireRate": 4.0, "barrels": 2 },
+        "3": { "fireRate": 4.5, "barrels": 3 },
+        "4": { "fireRate": 5.0, "barrels": 4 }
+      }
+    },
+    "scoreMultiplier": { "mult": 2.0, "durationMs": 3000, "showCountdown": true }
+  },
+  "collision": {
+    "mode": "circle",
+    "radiusScale": 0.92,
+    "enabledPairs": {
+      "projectile:meteoroid": true,
+      "ship:meteoroid": true,
+      "ship:powerup": true,
+      "meteoroid:meteoroid": false,
+      "meteoroid:powerup": false,
+      "powerup:powerup": false
+    }
+  },
+  "assets": {
+    "autoScaleDown": true,
+    "maxSpriteSizePx": 256,
+    "policy": "If a loaded image exceeds maxSpriteSizePx or its category target (e.g., ship.spriteTargetPx), scale it down at load time while preserving aspect ratio."
+  },
+  "background": { "image": null, "fallback": { "type": "starfield", "density": 0.002 } }
+}
