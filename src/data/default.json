@@ -1,4 +1,9 @@
 {
+  "canvas": {
+    "maxWidth": 800,
+    "maxHeight": 1000,
+    "aspectRatio": "4:5"
+  },
   "ship": {
     "controlMode": "direct",
     "autoFire": true,

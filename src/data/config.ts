@@ -43,7 +43,7 @@ function validateConfig(config: GameConfig): GameConfig {
 
 export function loadConfig(): GameConfig {
   try {
-    const config = defaultConfigJson as GameConfig;
+    const config = defaultConfigJson as unknown as GameConfig;
     return validateConfig(config);
   } catch (error) {
     console.error('Config validation failed:', error);

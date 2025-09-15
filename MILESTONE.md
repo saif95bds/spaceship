@@ -41,7 +41,7 @@ Mobile: drag joystick; pause on lift.
 
 Emit normalized ship movement vector.
 
-✅ Acceptance: A square ship placeholder moves around canvas with input.
+✅ Acceptance: A ship (base.png) moves around canvas with input.
 
 Milestone 4 — Rendering Layer
 

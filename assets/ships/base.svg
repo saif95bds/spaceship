@@ -1,0 +1,5 @@
+<!-- Placeholder SVG ship that can be used until base.png is created -->
+<svg width="128" height="128" viewBox="0 0 128 128" xmlns="http://www.w3.org/2000/svg">
+  <polygon points="64,10 20,110 64,90 108,110" fill="#00AAFF" stroke="#00DDFF" stroke-width="2"/>
+  <circle cx="64" cy="60" r="8" fill="#FFFFFF" opacity="0.8"/>
+</svg>

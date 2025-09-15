@@ -147,7 +147,14 @@ export interface BackgroundConfig {
   };
 }
 
+export interface CanvasConfig {
+  maxWidth: number;
+  maxHeight: number;
+  aspectRatio: string; // e.g., "4:5" for portrait
+}
+
 export interface GameConfig {
+  canvas: CanvasConfig;
   ship: ShipConfig;
   projectile: ProjectileConfig;
   spawn: SpawnConfig;
