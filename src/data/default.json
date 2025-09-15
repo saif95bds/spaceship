@@ -60,6 +60,26 @@
       "spin": { "min": -90, "max": 90 },
       "weight": 1.0,
       "collision": { "radiusScale": 0.9 }
+    },
+    {
+      "id": "ice",
+      "images": { "L": "assets/rocks/ice_l.png", "M": "assets/rocks/ice_m.png", "S": "assets/rocks/ice_s.png" },
+      "hp": { "L": 2, "M": 1, "S": 1 },
+      "split": { "L": [3, "M"], "M": [2, "S"], "S": null },
+      "speed": { "min": 2, "max": 4 },
+      "spin": { "min": -120, "max": 120 },
+      "weight": 0.7,
+      "collision": { "radiusScale": 0.85 }
+    },
+    {
+      "id": "metal",
+      "images": { "L": "assets/rocks/metal_l.png", "M": "assets/rocks/metal_m.png", "S": "assets/rocks/metal_s.png" },
+      "hp": { "L": 4, "M": 3, "S": 2 },
+      "split": { "L": [2, "M"], "M": [2, "S"], "S": null },
+      "speed": { "min": 1, "max": 2 },
+      "spin": { "min": -60, "max": 60 },
+      "weight": 0.5,
+      "collision": { "radiusScale": 0.95 }
     }
   ],
   "drift": { "A0": 10, "Amax": 120, "k": 0.05, "omegaRange": [0.6, 1.2] },

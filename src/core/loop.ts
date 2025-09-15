@@ -80,13 +80,30 @@ export function startGameLoop(canvas: HTMLCanvasElement, ctx: CanvasRenderingCon
     }
   }
 
-  function spawnMeteoroid() {
-    // Choose a random meteoroid config (for now, just use the first one)
-    const meteoroidConfig = config.meteoroids[0];
+  function selectMeteoruidType() {
+    // Calculate total weight
+    const totalWeight = config.meteoroids.reduce((sum, m) => sum + m.weight, 0);
     
-    // Choose a random size (weighted towards larger sizes for now)
+    // Select random meteoroid based on weights
+    let random = Math.random() * totalWeight;
+    for (const meteoroidConfig of config.meteoroids) {
+      random -= meteoroidConfig.weight;
+      if (random <= 0) {
+        return meteoroidConfig;
+      }
+    }
+    
+    // Fallback to first meteoroid if something goes wrong
+    return config.meteoroids[0];
+  }
+
+  function spawnMeteoroid() {
+    // Choose a random meteoroid config based on weights
+    const meteoroidConfig = selectMeteoruidType();
+    
+    // Choose a random size (weighted towards smaller sizes, larger meteoroids spawn less often)
     const sizes: ('L' | 'M' | 'S')[] = ['L', 'M', 'S'];
-    const sizeWeights = [0.3, 0.4, 0.3]; // 30% L, 40% M, 30% S
+    const sizeWeights = [0.2, 0.4, 0.4]; // 20% L, 40% M, 40% S
     const rand = Math.random();
     let size: 'L' | 'M' | 'S' = 'M';
     
@@ -94,11 +111,25 @@ export function startGameLoop(canvas: HTMLCanvasElement, ctx: CanvasRenderingCon
     else if (rand < sizeWeights[0] + sizeWeights[1]) size = 'M';
     else size = 'S';
     
-    // Spawn position: random X across screen width, above screen
-    const x = Math.random() * canvas.width;
-    const y = -50; // Start above screen
+    // Spawn position: random X from top strip with safety radius around ship
+    const safetyRadius = config.spawn.margin;
+    let x: number;
+    let attempts = 0;
+    const maxAttempts = 10;
+    
+    // Try to find a safe spawn position away from ship
+    do {
+      x = Math.random() * canvas.width;
+      attempts++;
+    } while (Math.abs(x - ship.x) < safetyRadius && attempts < maxAttempts);
+    
+    const y = -config.spawn.margin; // Start above screen (use margin from config)
     
     const meteoroid = new Meteoroid(x, y, size, meteoroidConfig);
+    
+    // Debug logging to verify type weighting and safety margin
+    console.log(`Spawned ${meteoroidConfig.id} meteoroid (${size}) at (${x.toFixed(1)}, ${y}) - Ship at (${ship.x.toFixed(1)}, ${ship.y.toFixed(1)}) - Distance: ${Math.abs(x - ship.x).toFixed(1)}px`);
+    
     meteoroids.push(meteoroid);
   }
 

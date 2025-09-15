@@ -76,9 +76,9 @@ Ship vs Meteoroid: lose 1 life.
 
 Milestone 6 — Spawning & Drift (corrected)
 
-Goal: have 3 meteoroid types spawn from top, drifting down.
+Goal: have 3 different types of meteoroids spawn from top, drifting down.
 
-Type weighting: choose meteoroid type via configured weight.
+Type weighting: choose meteoroid type via configured weight (probability). larger meteoroids spawn less often.
 
 Safety margin: avoid spawning within a radius around the player.
 
