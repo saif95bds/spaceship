@@ -186,6 +186,10 @@ export class Meteoroid {
   }
 
   // Get meteoroids that this one should split into (if any)
+  getConfig(): MeteoroidConfig {
+    return this.config;
+  }
+
   getSplitMeteoroids(): Meteoroid[] {
     const splitConfig = this.config.split[this.sizeType];
     if (!splitConfig) {

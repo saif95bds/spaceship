@@ -12,6 +12,7 @@ export class Ship {
   private config: GameConfig;
   private lastFireTime: number = 0;
   private fireInterval: number; // Time between shots in milliseconds
+  private barrels: number = 1; // Number of barrels/cannons
   private invincible: boolean = false;
   private invincibilityEndTime: number = 0;
   private invincibilityDuration: number = 2000; // 2 seconds of invincibility
@@ -40,7 +41,7 @@ export class Ship {
     this.image.src = this.config.ship.skins.default;
   }
 
-  public update(deltaTime: number, movementX: number, movementY: number, canvasWidth: number, canvasHeight: number, currentTime: number): Projectile | null {
+  public update(deltaTime: number, movementX: number, movementY: number, canvasWidth: number, canvasHeight: number, currentTime: number): Projectile[] {
     // Update invincibility
     if (this.invincible && currentTime >= this.invincibilityEndTime) {
       this.invincible = false;
@@ -61,11 +62,28 @@ export class Ship {
     // Auto-fire projectiles
     if (this.config.ship.autoFire && currentTime - this.lastFireTime >= this.fireInterval) {
       this.lastFireTime = currentTime;
-      // Create projectile at ship position, slightly above
-      return new Projectile(this.x, this.y - this.height / 2 - 10, this.config);
+      
+      const projectiles: Projectile[] = [];
+      const shipTop = this.y - this.height / 2 - 10;
+      
+      if (this.barrels === 1) {
+        // Single barrel - center
+        projectiles.push(new Projectile(this.x, shipTop, this.config));
+      } else {
+        // Multiple barrels - spread across ship width
+        const barrelSpacing = this.width / (this.barrels + 1);
+        const startX = this.x - this.width / 2 + barrelSpacing;
+        
+        for (let i = 0; i < this.barrels; i++) {
+          const barrelX = startX + (i * barrelSpacing);
+          projectiles.push(new Projectile(barrelX, shipTop, this.config));
+        }
+      }
+      
+      return projectiles;
     }
 
-    return null;
+    return [];
   }
 
   public render(ctx: CanvasRenderingContext2D) {
@@ -104,6 +122,39 @@ export class Ship {
 
   public getCollisionRadius(): number {
     return (Math.min(this.width, this.height) / 2) * this.config.ship.collision.radiusScale;
+  }
+
+  public setFireRate(fireRate: number) {
+    this.fireInterval = 1000 / fireRate; // Convert rate to interval
+  }
+
+  public setBarrels(barrels: number) {
+    this.barrels = barrels;
+    console.log(`[DEBUG] Ship barrels set to: ${this.barrels}`);
+  }
+
+  public resetToDefault() {
+    this.barrels = 1;
+    this.fireInterval = 1000 / this.config.projectile.fireRate;
+    this.updateSkin(0);
+    console.log(`[DEBUG] Ship reset to default configuration`);
+  }
+
+  public updateSkin(rapidFireLevel: number) {
+    if (!this.image) return;
+    
+    if (rapidFireLevel === 0) {
+      this.image.src = this.config.ship.skins.default;
+      console.log(`[DEBUG] Ship skin: default`);
+    } else {
+      const skinKey = rapidFireLevel.toString() as keyof typeof this.config.ship.skins.rapidFire;
+      if (this.config.ship.skins.rapidFire[skinKey]) {
+        this.image.src = this.config.ship.skins.rapidFire[skinKey];
+        console.log(`[DEBUG] Ship skin: rapidFire level ${rapidFireLevel} - ${this.image.src}`);
+      } else {
+        console.warn(`[WARNING] No skin available for rapidFire level ${rapidFireLevel}`);
+      }
+    }
   }
 
   public takeDamage(currentTime: number): boolean {

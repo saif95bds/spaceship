@@ -97,6 +97,8 @@ export interface DriftConfig {
 }
 
 export interface PowerUpConfig {
+  spawnFrequencySeconds: number;
+  speed: number;
   resetOnDeath: boolean;
   "+1life": {
     enabled: boolean;

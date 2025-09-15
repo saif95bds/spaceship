@@ -1,12 +1,24 @@
 import { Ship } from '../entities/Ship';
 import { Projectile } from '../entities/Projectile';
 import { Meteoroid } from '../entities/Meteoroid';
+import { PowerUp } from '../entities/PowerUp';
 
 export interface CollisionResult {
   type: 'projectile-meteoroid' | 'ship-meteoroid';
   projectileIndex?: number;
   meteoroidIndex: number;
   damage?: number;
+}
+
+export interface PowerUpCollisionResult {
+  type: 'ship-powerup';
+  powerUpIndex: number;
+}
+
+export interface ProjectilePowerUpCollisionResult {
+  type: 'projectile-powerup';
+  projectileIndex: number;
+  powerUpIndex: number;
 }
 
 export class CollisionSystem {
@@ -69,6 +81,59 @@ export class CollisionSystem {
           type: 'ship-meteoroid',
           meteoroidIndex: m
         });
+      }
+    }
+
+    return collisions;
+  }
+
+  // Check ship-powerup collisions
+  static checkPowerUpCollisions(
+    ship: Ship,
+    powerUps: PowerUp[]
+  ): PowerUpCollisionResult[] {
+    const collisions: PowerUpCollisionResult[] = [];
+
+    for (let p = 0; p < powerUps.length; p++) {
+      const powerUp = powerUps[p];
+      
+      if (this.checkCircleCollision(
+        ship.x, ship.y, ship.getCollisionRadius(),
+        powerUp.x, powerUp.y, powerUp.getRadius()
+      )) {
+        collisions.push({
+          type: 'ship-powerup',
+          powerUpIndex: p
+        });
+      }
+    }
+
+    return collisions;
+  }
+
+  // Check projectile-powerup collisions
+  static checkProjectilePowerUpCollisions(
+    projectiles: Projectile[],
+    powerUps: PowerUp[]
+  ): ProjectilePowerUpCollisionResult[] {
+    const collisions: ProjectilePowerUpCollisionResult[] = [];
+
+    for (let p = 0; p < projectiles.length; p++) {
+      const projectile = projectiles[p];
+      
+      for (let pu = 0; pu < powerUps.length; pu++) {
+        const powerUp = powerUps[pu];
+        
+        if (this.checkCircleCollision(
+          projectile.x, projectile.y, projectile.getCollisionRadius(),
+          powerUp.x, powerUp.y, powerUp.getRadius()
+        )) {
+          collisions.push({
+            type: 'projectile-powerup',
+            projectileIndex: p,
+            powerUpIndex: pu
+          });
+        }
       }
     }
 

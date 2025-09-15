@@ -84,16 +84,18 @@
   ],
   "drift": { "A0": 10, "Amax": 120, "k": 0.05, "omegaRange": [0.6, 1.2] },
   "powerUps": {
+    "spawnFrequencySeconds": 5,
+    "speed": 500,
     "resetOnDeath": false,
     "+1life": { "enabled": true },
     "rapidFire": {
       "maxLevel": 4,
       "skins": { "1": "assets/ships/base_rf1.png", "2": "assets/ships/base_rf2.png", "3": "assets/ships/base_rf3.png", "4": "assets/ships/base_rf4.png" },
       "levels": {
-        "1": { "fireRate": 3.5, "barrels": 1 },
-        "2": { "fireRate": 4.0, "barrels": 2 },
-        "3": { "fireRate": 4.5, "barrels": 3 },
-        "4": { "fireRate": 5.0, "barrels": 4 }
+        "1": { "fireRate": 6.0, "barrels": 2 },
+        "2": { "fireRate": 8.0, "barrels": 4 },
+        "3": { "fireRate": 10.0, "barrels": 6 },
+        "4": { "fireRate": 12.0, "barrels": 8 }
       }
     },
     "scoreMultiplier": { "mult": 2.0, "durationMs": 3000, "showCountdown": true }
@@ -105,6 +107,7 @@
       "projectile:meteoroid": true,
       "ship:meteoroid": true,
       "ship:powerup": true,
+      "projectile:powerup": true,
       "meteoroid:meteoroid": false,
       "meteoroid:powerup": false,
       "powerup:powerup": false

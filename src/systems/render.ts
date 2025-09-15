@@ -2,6 +2,7 @@ import { GameConfig } from '../types/config';
 import { Ship } from '../entities/Ship';
 import { Projectile } from '../entities/Projectile';
 import { Meteoroid } from '../entities/Meteoroid';
+import { PowerUp } from '../entities/PowerUp';
 import { ParticleSystem } from './particles';
 
 interface Star {
@@ -76,7 +77,18 @@ export class RenderSystem {
     this.generateStarfield();
   }
 
-  public render(ship: Ship, projectiles: Projectile[], meteoroids: Meteoroid[], particleSystem: ParticleSystem, deltaTime: number) {
+  public render(
+    ship: Ship, 
+    projectiles: Projectile[], 
+    meteoroids: Meteoroid[], 
+    powerUps: PowerUp[], 
+    particleSystem: ParticleSystem, 
+    deltaTime: number,
+    score: number = 0,
+    rapidFireLevel: number = 0,
+    scoreMultiplier: number = 1,
+    scoreMultiplierEndTime: number = 0
+  ) {
     this.time += deltaTime;
     this.clearCanvas();
     
@@ -84,10 +96,10 @@ export class RenderSystem {
     this.renderBackground();
     
     // Layer 2: Entities and Effects
-    this.renderEntities(ship, projectiles, meteoroids, particleSystem);
+    this.renderEntities(ship, projectiles, meteoroids, powerUps, particleSystem);
     
     // Layer 3: HUD
-    this.renderHUD(ship);
+    this.renderHUD(ship, score, rapidFireLevel, scoreMultiplier, scoreMultiplierEndTime);
   }
 
   private clearCanvas() {
@@ -124,26 +136,40 @@ export class RenderSystem {
     }
   }
 
-  private renderEntities(ship: Ship, projectiles: Projectile[], meteoroids: Meteoroid[], particleSystem: ParticleSystem) {
+  private renderEntities(ship: Ship, projectiles: Projectile[], meteoroids: Meteoroid[], powerUps: PowerUp[], particleSystem: ParticleSystem) {
     // Render meteoroids (behind other entities)
     for (const meteoroid of meteoroids) {
       meteoroid.render(this.ctx);
     }
-    
+
+    // Render power-ups
+    if (powerUps.length > 0 && Math.random() < 0.1) { // Reduce debug spam
+      console.log(`[DEBUG] Rendering ${powerUps.length} power-up(s)`);
+    }
+    for (const powerUp of powerUps) {
+      powerUp.render(this.ctx);
+    }
+
     // Render projectiles
     for (const projectile of projectiles) {
       projectile.render(this.ctx);
     }
-    
-    // Render particles (impact effects)
+
+    // Render particles (explosions, impacts)
     particleSystem.render(this.ctx);
-    
-    // Render ship (on top)
+
+    // Render ship (on top of everything else)
     ship.render(this.ctx);
   }
 
-  private renderHUD(ship: Ship) {
-    // HUD placeholder text
+  private renderHUD(
+    ship: Ship, 
+    score: number = 0, 
+    rapidFireLevel: number = 0, 
+    scoreMultiplier: number = 1, 
+    scoreMultiplierEndTime: number = 0
+  ) {
+    // HUD text styling
     this.ctx.fillStyle = '#ffffff';
     this.ctx.font = '20px Arial, sans-serif';
     this.ctx.textAlign = 'left';
@@ -161,7 +187,27 @@ export class RenderSystem {
     
     // Score (top-right area)
     this.ctx.textAlign = 'right';
-    this.ctx.fillText('Score: 0', this.canvas.width - 20, 30);
+    this.ctx.fillText(`Score: ${score}`, this.canvas.width - 20, 30);
+    
+    // Power-up indicators (top-center)
+    this.ctx.textAlign = 'center';
+    const centerX = this.canvas.width / 2;
+    let yOffset = 30;
+    
+    // Rapid Fire indicator
+    if (rapidFireLevel > 0) {
+      this.ctx.fillStyle = '#ffff00'; // Yellow
+      this.ctx.fillText(`⚡ Rapid Fire Lvl ${rapidFireLevel}`, centerX - 100, yOffset);
+      this.ctx.fillStyle = '#ffffff';
+    }
+    
+    // Score Multiplier indicator with countdown
+    if (scoreMultiplier > 1 && scoreMultiplierEndTime > 0) {
+      const remainingTime = Math.max(0, (scoreMultiplierEndTime - Date.now()) / 1000);
+      this.ctx.fillStyle = '#ffd700'; // Gold
+      this.ctx.fillText(`★ ${scoreMultiplier}x Score (${remainingTime.toFixed(1)}s)`, centerX + 100, yOffset);
+      this.ctx.fillStyle = '#ffffff';
+    }
     
     // Controls help (bottom)
     this.ctx.textAlign = 'center';
