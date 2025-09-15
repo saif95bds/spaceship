@@ -1,0 +1,27 @@
+# Node modules
+node_modules/
+
+# Vite build output
+dist/
+
+#gen AI inputs
+mvp.md
+
+# Logs
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+
+# Environment files
+.env
+.env.*
+
+# Editor directories
+.vscode/
+.idea/
+
+# OS files
+.DS_Store
+
+# Optional: asset generation cache
+assets/generated/
