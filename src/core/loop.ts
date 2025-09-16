@@ -4,6 +4,9 @@ import { InputSystem } from '../systems/input';
 import { RenderSystem } from '../systems/render';
 import { CollisionSystem, PowerUpCollisionResult, ProjectilePowerUpCollisionResult } from '../systems/collision';
 import { ParticleSystem } from '../systems/particles';
+import { ProjectilePool } from '../systems/ProjectilePool';
+import { ParticlePool } from '../systems/ParticlePool';
+import { DebugSystem } from '../systems/DebugSystem';
 import { Ship } from '../entities/Ship';
 import { Projectile } from '../entities/Projectile';
 import { Meteoroid } from '../entities/Meteoroid';
@@ -22,6 +25,9 @@ export function startGameLoop(canvas: HTMLCanvasElement, ctx: CanvasRenderingCon
   const inputSystem = new InputSystem(canvas);
   const renderSystem = new RenderSystem(canvas, ctx, config);
   const particleSystem = new ParticleSystem();
+  const projectilePool = new ProjectilePool(config);
+  const particlePool = ParticlePool.getInstance();
+  const debugSystem = DebugSystem.getInstance();
   const ship = new Ship(canvas.width / 2, canvas.height - 100, config);
   const projectiles: Projectile[] = [];
   const meteoroids: Meteoroid[] = [];
@@ -50,6 +56,9 @@ export function startGameLoop(canvas: HTMLCanvasElement, ctx: CanvasRenderingCon
   function update(dt: number, currentTime: number) {
     const input = inputSystem.getInputState();
     
+    // Update debug system with FPS
+    debugSystem.updateFPS(dt);
+    
     // Handle tutorial dismissal
     if (renderSystem.isTutorialActive()) {
       // Dismiss tutorial on any input
@@ -69,8 +78,9 @@ export function startGameLoop(canvas: HTMLCanvasElement, ctx: CanvasRenderingCon
     }
     
     if (!input.isPaused) {
-      // Update ship and handle auto-fire
-      const newProjectiles = ship.update(dt, input.movement.x, input.movement.y, canvas.width, canvas.height, currentTime);
+      // Update ship and handle auto-fire with projectile pool
+      const newProjectiles = ship.update(dt, input.movement.x, input.movement.y, canvas.width, canvas.height, currentTime, 
+        (x, y) => projectilePool.acquire(x, y));
       if (newProjectiles.length > 0) {
         projectiles.push(...newProjectiles);
         if (newProjectiles.length > 1) {
@@ -101,8 +111,9 @@ export function startGameLoop(canvas: HTMLCanvasElement, ctx: CanvasRenderingCon
         const projectile = projectiles[i];
         projectile.update(dt, canvas.height);
         
-        // Remove dead projectiles
+        // Remove dead projectiles and return to pool
         if (!projectile.alive) {
+          projectilePool.release(projectile);
           projectiles.splice(i, 1);
         }
       }
@@ -270,12 +281,33 @@ export function startGameLoop(canvas: HTMLCanvasElement, ctx: CanvasRenderingCon
         // Create impact effect at collision point
         particleSystem.createImpactEffect(projectile.x, projectile.y);
         
-        // Remove the projectile
+        // Create additional damage burst effect for all hits (destroyed or not)
+        particleSystem.createDamageBurst(meteoroid.x, meteoroid.y, meteoroid.size, isDestroyed);
+        
+        // Debug logging
+        console.log(`[DEBUG] ${meteoroid.meteoroidType} collision at (${projectile.x.toFixed(1)}, ${projectile.y.toFixed(1)}) - Size: ${meteoroid.size} - Destroyed: ${isDestroyed} - Particles: ${particleSystem.getParticleCount()}`);
+        
+        // Add light screen shake for all hits (more for destruction)
+        if (!isDestroyed) {
+          const lightShake = Math.min(meteoroid.size / 20, 3); // Light shake for hits
+          renderSystem.addScreenShake(lightShake, 0.1); // 100ms
+        }
+        
+        // Remove the projectile and return to pool
+        projectilePool.release(projectile);
         projectiles.splice(projectileIndex, 1);
       
         if (isDestroyed) {
           // Create explosion effect
           particleSystem.createExplosionEffect(meteoroid.x, meteoroid.y, meteoroid.size);
+          
+          // Add additional firework burst for larger meteoroids
+          particleSystem.createFireworkBurst(meteoroid.x, meteoroid.y, meteoroid.size);
+          
+          // Add screen shake based on meteoroid size
+          const shakeIntensity = Math.min(meteoroid.size / 8, 12); // Scale with size, max 12 pixels
+          const shakeDuration = Math.min(0.15 + (meteoroid.size / 100), 0.4); // 150ms-400ms based on size
+          renderSystem.addScreenShake(shakeIntensity, shakeDuration);
           
           // Handle meteoroid splitting
           const splitMeteoroids = meteoroid.getSplitMeteoroids();
@@ -315,6 +347,15 @@ export function startGameLoop(canvas: HTMLCanvasElement, ctx: CanvasRenderingCon
       
       for (const collision of shipCollisions) {
         const meteoroidIndex = collision.meteoroidIndex;
+        const meteoroid = meteoroids[meteoroidIndex];
+        
+        // Create dramatic collision effect
+        particleSystem.createExplosionEffect(meteoroid.x, meteoroid.y, meteoroid.size);
+        particleSystem.createFireworkBurst(meteoroid.x, meteoroid.y, meteoroid.size);
+        
+        // Strong screen shake for ship collision
+        const shakeIntensity = Math.min(meteoroid.size / 6, 15); // Stronger shake for ship hit
+        renderSystem.addScreenShake(shakeIntensity, 0.5); // Longer duration
         
         // Ship takes damage and becomes invincible
         const gameOver = ship.takeDamage(currentTime);
@@ -395,8 +436,10 @@ export function startGameLoop(canvas: HTMLCanvasElement, ctx: CanvasRenderingCon
         // Remove both the power-up and the projectile (highest indices first)
         if (powerUpIndex >= projectileIndex) {
           powerUps.splice(powerUpIndex, 1);
+          projectilePool.release(projectile);
           projectiles.splice(projectileIndex, 1);
         } else {
+          projectilePool.release(projectile);
           projectiles.splice(projectileIndex, 1);
           powerUps.splice(powerUpIndex, 1);
         }
@@ -446,6 +489,34 @@ export function startGameLoop(canvas: HTMLCanvasElement, ctx: CanvasRenderingCon
   function render(dt: number, currentTime: number) {
     if (!ctx) return;
     renderSystem.render(ship, projectiles, meteoroids, powerUps, particleSystem, dt, score, rapidFireLevel, scoreMultiplier, scoreMultiplierEndTime);
+    
+    // Render debug information
+    if (debugSystem.shouldShowFPS() || debugSystem.shouldShowObjectPoolStats()) {
+      const projectileStats = projectilePool.getStats();
+      const particleStats = particlePool.getStats();
+      debugSystem.renderDebugInfo(ctx, projectileStats, particleStats);
+    }
+    
+    // Render collision rings for debug
+    if (debugSystem.shouldShowCollisionRings()) {
+      // Ship collision ring
+      debugSystem.renderCollisionRing(ctx, ship.x, ship.y, ship.getCollisionRadius(), '#00ff00');
+      
+      // Meteoroid collision rings
+      meteoroids.forEach(meteoroid => {
+        debugSystem.renderCollisionRing(ctx, meteoroid.x, meteoroid.y, meteoroid.getCollisionRadius(), '#ff0000');
+      });
+      
+      // Projectile collision rings
+      projectiles.forEach(projectile => {
+        debugSystem.renderCollisionRing(ctx, projectile.x, projectile.y, projectile.getCollisionRadius(), '#0000ff');
+      });
+      
+      // Power-up collision rings
+      powerUps.forEach(powerUp => {
+        debugSystem.renderCollisionRing(ctx, powerUp.x, powerUp.y, powerUp.getRadius(), '#ffff00');
+      });
+    }
   }
 
   function loop(now: number) {

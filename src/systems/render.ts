@@ -4,6 +4,7 @@ import { Projectile } from '../entities/Projectile';
 import { Meteoroid } from '../entities/Meteoroid';
 import { PowerUp } from '../entities/PowerUp';
 import { ParticleSystem } from './particles';
+import { DebugSystem } from './DebugSystem';
 
 interface Star {
   x: number;
@@ -24,6 +25,11 @@ export class RenderSystem {
   private backgroundImageFailed: boolean = false;
   private showTutorial: boolean = true;
   private tutorialStartTime: number = Date.now();
+  
+  // Screen shake
+  private shakeIntensity: number = 0;
+  private shakeDuration: number = 0;
+  private shakeTimer: number = 0;
 
   constructor(canvas: HTMLCanvasElement, ctx: CanvasRenderingContext2D, config: GameConfig) {
     this.canvas = canvas;
@@ -79,6 +85,37 @@ export class RenderSystem {
     this.generateStarfield();
   }
 
+  public addScreenShake(intensity: number, duration: number) {
+    this.shakeIntensity = Math.max(this.shakeIntensity, intensity);
+    this.shakeDuration = Math.max(this.shakeDuration, duration);
+    this.shakeTimer = this.shakeDuration;
+  }
+
+  private updateScreenShake(deltaTime: number) {
+    if (this.shakeTimer > 0) {
+      this.shakeTimer -= deltaTime;
+      if (this.shakeTimer <= 0) {
+        this.shakeIntensity = 0;
+        this.shakeDuration = 0;
+      }
+    }
+  }
+
+  private getShakeOffset(): { x: number; y: number } {
+    const debugSystem = DebugSystem.getInstance();
+    if (this.shakeTimer <= 0 || debugSystem.shouldReduceMotion()) {
+      return { x: 0, y: 0 };
+    }
+    
+    const progress = this.shakeTimer / this.shakeDuration;
+    const currentIntensity = this.shakeIntensity * progress;
+    
+    return {
+      x: (Math.random() - 0.5) * currentIntensity * 2,
+      y: (Math.random() - 0.5) * currentIntensity * 2
+    };
+  }
+
   public render(
     ship: Ship, 
     projectiles: Projectile[], 
@@ -92,7 +129,13 @@ export class RenderSystem {
     scoreMultiplierEndTime: number = 0
   ) {
     this.time += deltaTime;
+    this.updateScreenShake(deltaTime);
     this.clearCanvas();
+    
+    // Apply screen shake offset (if not in reduce motion mode)
+    const shakeOffset = this.getShakeOffset();
+    this.ctx.save();
+    this.ctx.translate(shakeOffset.x, shakeOffset.y);
     
     // Layer 1: Background
     this.renderBackground();
@@ -102,6 +145,9 @@ export class RenderSystem {
     
     // Layer 3: HUD
     this.renderHUD(ship, score, rapidFireLevel, scoreMultiplier, scoreMultiplierEndTime);
+    
+    // Restore transform before UI overlays
+    this.ctx.restore();
     
     // Layer 4: Tutorial Overlay (if active)
     if (this.showTutorial) {

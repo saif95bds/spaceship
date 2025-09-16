@@ -16,7 +16,17 @@ export class Projectile {
     this.y = y;
     this.config = config;
     this.speed = config.projectile.speed;
+    this.alive = true;
     this.loadImage();
+  }
+
+  /**
+   * Reset projectile for object pool reuse
+   */
+  public reset(x: number, y: number): void {
+    this.x = x;
+    this.y = y;
+    this.alive = true;
   }
 
   private loadImage() {

@@ -41,7 +41,7 @@ export class Ship {
     this.image.src = this.config.ship.skins.default;
   }
 
-  public update(deltaTime: number, movementX: number, movementY: number, canvasWidth: number, canvasHeight: number, currentTime: number): Projectile[] {
+  public update(deltaTime: number, movementX: number, movementY: number, canvasWidth: number, canvasHeight: number, currentTime: number, projectileFactory?: (x: number, y: number) => Projectile): Projectile[] {
     // Update invincibility
     if (this.invincible && currentTime >= this.invincibilityEndTime) {
       this.invincible = false;
@@ -66,9 +66,11 @@ export class Ship {
       const projectiles: Projectile[] = [];
       const shipTop = this.y - this.height / 2 - 10;
       
+      const createProjectile = projectileFactory || ((x, y) => new Projectile(x, y, this.config));
+      
       if (this.barrels === 1) {
         // Single barrel - center
-        projectiles.push(new Projectile(this.x, shipTop, this.config));
+        projectiles.push(createProjectile(this.x, shipTop));
       } else {
         // Multiple barrels - spread across ship width
         const barrelSpacing = this.width / (this.barrels + 1);
@@ -76,7 +78,7 @@ export class Ship {
         
         for (let i = 0; i < this.barrels; i++) {
           const barrelX = startX + (i * barrelSpacing);
-          projectiles.push(new Projectile(barrelX, shipTop, this.config));
+          projectiles.push(createProjectile(barrelX, shipTop));
         }
       }
       
