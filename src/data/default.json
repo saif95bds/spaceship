@@ -49,14 +49,14 @@
   },
   "projectile": {
     "speed": 900,
-    "fireRate": 6.0,
+    "fireRate": 2.0,
     "sprite": "assets/projectiles/bullet.png",
     "impactFx": { "enabled": true, "particles": true, "flash": true, "durationMs": 150 }
   },
   "spawn": {
     "arcDegrees": { "start": 300, "end": 60 },
     "margin": 40,
-    "basePerSecond": 2,
+    "basePerSecond": 1,
     "rateRamp": { "type": "exp", "k": 0.06 }
   },
   "meteoroids": [

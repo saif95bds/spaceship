@@ -322,13 +322,44 @@ export function startGameLoop(canvas: HTMLCanvasElement, ctx: CanvasRenderingCon
           // Create explosion effect
           particleSystem.createExplosionEffect(meteoroid.x, meteoroid.y, meteoroid.size);
           
-          // Add additional firework burst for larger meteoroids
+          // Add immediate firework burst
           particleSystem.createFireworkBurst(meteoroid.x, meteoroid.y, meteoroid.size);
           
+          // Add mega burst for the largest meteoroids
+          if (meteoroid.size > 60) {
+            particleSystem.createMegaBurst(meteoroid.x, meteoroid.y, meteoroid.size);
+          }
+          
+          // Add delayed secondary bursts for large meteoroids
+          if (meteoroid.size > 50) {
+            setTimeout(() => {
+              particleSystem.createFireworkBurst(
+                meteoroid.x + (Math.random() - 0.5) * 30, 
+                meteoroid.y + (Math.random() - 0.5) * 30, 
+                meteoroid.size * 0.8
+              );
+            }, 150);
+            
+            setTimeout(() => {
+              particleSystem.createFireworkBurst(
+                meteoroid.x + (Math.random() - 0.5) * 40, 
+                meteoroid.y + (Math.random() - 0.5) * 40, 
+                meteoroid.size * 0.6
+              );
+            }, 300);
+          }
+          
           // Add screen shake based on meteoroid size
-          const shakeIntensity = Math.min(meteoroid.size / 8, 12); // Scale with size, max 12 pixels
-          const shakeDuration = Math.min(0.15 + (meteoroid.size / 100), 0.4); // 150ms-400ms based on size
+          const shakeIntensity = Math.min(meteoroid.size / 8, 5); // Scale with size, max 5 pixels
+          const shakeDuration = Math.min(0.1 + (meteoroid.size / 100), 0.2); // 100ms-200ms based on size
           renderSystem.addScreenShake(shakeIntensity, shakeDuration);
+          
+          // Add screen flash for large meteoroid explosions
+          if (meteoroid.size > 40) {
+            const flashIntensity = Math.min(meteoroid.size / 200, 0.4); // 0-40% flash intensity
+            const flashDuration = Math.min(0.08 + (meteoroid.size / 500), 0.15); // 80ms-150ms flash
+            renderSystem.addScreenFlash(flashIntensity, flashDuration);
+          }
           
           // Handle meteoroid splitting
           const splitMeteoroids = meteoroid.getSplitMeteoroids();

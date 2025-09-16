@@ -56,9 +56,9 @@ export class ParticleSystem {
       
       if (isMainExplosion) {
         // Main explosion particles - fast, bright, larger
-        const speed = 60 + Math.random() * 120;
+        const speed = 10 + Math.random() * 120;
         const life = 1.0 + Math.random() * 0.8; // 1.0-1.8 seconds
-        const size = 2 + Math.random() * 6; // Larger particles
+        const size = 20 + Math.random() * 6; // Larger particles
         const color = ['#ffdd44', '#ff8844', '#ff4444', '#ffaa22'][Math.floor(Math.random() * 4)]; // Brighter colors
         
         const particle = this.particlePool.acquire(
@@ -122,19 +122,28 @@ export class ParticleSystem {
     }
   }
 
-  // Create additional firework burst for large meteoroid destruction
+  // Create dramatic firework burst for meteoroid destruction
   createFireworkBurst(x: number, y: number, meteoroidSize: number) {
-    // Only create burst for larger meteoroids
-    if (meteoroidSize < 30) return;
+    // Lower threshold - create fireworks for smaller meteoroids too
+    if (meteoroidSize < 20) return;
     
-    const burstCount = Math.floor(meteoroidSize / 8); // Scale with size
+    const burstCount = Math.floor(meteoroidSize / 4) + 8; // More particles, minimum 8
+    const colorPalettes = [
+      ['#ff0044', '#ff4400', '#ffaa00', '#ffff44'], // Red-Orange-Yellow
+      ['#44ff00', '#00ff44', '#00ffaa', '#44ffff'], // Green-Cyan
+      ['#4400ff', '#aa00ff', '#ff00aa', '#ff4488'], // Blue-Purple-Pink
+      ['#ffffff', '#ffff88', '#ff8888', '#88ffff']  // White-Light variants
+    ];
     
+    const palette = colorPalettes[Math.floor(Math.random() * colorPalettes.length)];
+    
+    // Create main burst
     for (let i = 0; i < burstCount; i++) {
-      const angle = (Math.PI * 2 * i) / burstCount + (Math.random() - 0.5) * 0.3;
-      const speed = 80 + Math.random() * 100;
-      const life = 1.2 + Math.random() * 0.8; // 1.2-2.0 seconds - longer lasting
-      const size = 3 + Math.random() * 5; // Large particles
-      const color = ['#ffffff', '#ffff44', '#ffaa44', '#ff6644'][Math.floor(Math.random() * 4)]; // Very bright colors
+      const angle = (Math.PI * 2 * i) / burstCount + (Math.random() - 0.5) * 0.5;
+      const speed = 120 + Math.random() * 150; // Faster particles
+      const life = 1.5 + Math.random() * 1.0; // 1.5-2.5 seconds - longer lasting
+      const size = 4 + Math.random() * 6; // Larger particles
+      const color = palette[Math.floor(Math.random() * palette.length)];
       
       const particle = this.particlePool.acquire(
         x,
@@ -144,6 +153,67 @@ export class ParticleSystem {
         life, size, color
       );
       this.particles.push(particle);
+    }
+    
+    // Create secondary burst with delay effect (sparks)
+    const sparkCount = Math.floor(meteoroidSize / 6) + 4;
+    for (let i = 0; i < sparkCount; i++) {
+      const angle = Math.random() * Math.PI * 2;
+      const speed = 60 + Math.random() * 80;
+      const life = 2.0 + Math.random() * 1.5; // Even longer lasting sparks
+      const size = 2 + Math.random() * 3;
+      const color = '#ffffff'; // White sparks
+      
+      const particle = this.particlePool.acquire(
+        x + (Math.random() - 0.5) * 20, // Slight position randomization
+        y + (Math.random() - 0.5) * 20,
+        Math.cos(angle) * speed,
+        Math.sin(angle) * speed,
+        life, size, color
+      );
+      this.particles.push(particle);
+    }
+  }
+
+  // Create massive explosion effect for the largest meteoroids
+  createMegaBurst(x: number, y: number, meteoroidSize: number) {
+    // Only for very large meteoroids
+    if (meteoroidSize < 60) return;
+    
+    const ringCount = 3; // Multiple rings of particles
+    const particlesPerRing = Math.floor(meteoroidSize / 3);
+    
+    for (let ring = 0; ring < ringCount; ring++) {
+      const ringDelay = ring * 50; // Stagger ring explosions
+      const ringRadius = 20 + (ring * 30);
+      const ringSpeed = 150 + (ring * 50);
+      
+      setTimeout(() => {
+        for (let i = 0; i < particlesPerRing; i++) {
+          const angle = (Math.PI * 2 * i) / particlesPerRing + (Math.random() - 0.5) * 0.4;
+          const speed = ringSpeed + Math.random() * 100;
+          const life = 2.5 + Math.random() * 1.5; // Very long lasting
+          const size = 5 + Math.random() * 8; // Very large particles
+          
+          // Ring-specific colors
+          const colorSets = [
+            ['#ffff00', '#ffaa00', '#ff6600'], // Inner ring: Yellow-Orange
+            ['#ff0066', '#ff6600', '#ffffff'], // Middle ring: Pink-Orange-White  
+            ['#00ffff', '#66ff00', '#ffffff']  // Outer ring: Cyan-Green-White
+          ];
+          const colors = colorSets[ring];
+          const color = colors[Math.floor(Math.random() * colors.length)];
+          
+          const particle = this.particlePool.acquire(
+            x + Math.cos(angle) * ringRadius,
+            y + Math.sin(angle) * ringRadius,
+            Math.cos(angle) * speed,
+            Math.sin(angle) * speed,
+            life, size, color
+          );
+          this.particles.push(particle);
+        }
+      }, ringDelay);
     }
   }
 

@@ -31,6 +31,11 @@ export class RenderSystem {
   private shakeIntensity: number = 0;
   private shakeDuration: number = 0;
   private shakeTimer: number = 0;
+  
+  // Screen flash
+  private flashIntensity: number = 0;
+  private flashDuration: number = 0;
+  private flashTimer: number = 0;
 
   constructor(canvas: HTMLCanvasElement, ctx: CanvasRenderingContext2D, config: GameConfig) {
     this.canvas = canvas;
@@ -92,12 +97,28 @@ export class RenderSystem {
     this.shakeTimer = this.shakeDuration;
   }
 
+  public addScreenFlash(intensity: number, duration: number) {
+    this.flashIntensity = Math.max(this.flashIntensity, Math.min(intensity, 1.0)); // Cap at 100%
+    this.flashDuration = Math.max(this.flashDuration, duration);
+    this.flashTimer = this.flashDuration;
+  }
+
   private updateScreenShake(deltaTime: number) {
     if (this.shakeTimer > 0) {
       this.shakeTimer -= deltaTime;
       if (this.shakeTimer <= 0) {
         this.shakeIntensity = 0;
         this.shakeDuration = 0;
+      }
+    }
+  }
+
+  private updateScreenFlash(deltaTime: number) {
+    if (this.flashTimer > 0) {
+      this.flashTimer -= deltaTime;
+      if (this.flashTimer <= 0) {
+        this.flashIntensity = 0;
+        this.flashDuration = 0;
       }
     }
   }
@@ -131,6 +152,7 @@ export class RenderSystem {
   ) {
     this.time += deltaTime;
     this.updateScreenShake(deltaTime);
+    this.updateScreenFlash(deltaTime);
     this.clearCanvas();
     
     // Apply screen shake offset (if not in reduce motion mode)
@@ -150,7 +172,10 @@ export class RenderSystem {
     // Restore transform before UI overlays
     this.ctx.restore();
     
-    // Layer 4: Tutorial Overlay (if active)
+    // Layer 4: Screen Flash Overlay
+    this.renderScreenFlash();
+    
+    // Layer 5: Tutorial Overlay (if active)
     if (this.showTutorial) {
       this.renderTutorialOverlay();
     }
@@ -158,6 +183,20 @@ export class RenderSystem {
 
   private clearCanvas() {
     this.ctx.clearRect(0, 0, this.canvas.width, this.canvas.height);
+  }
+
+  private renderScreenFlash() {
+    if (this.flashTimer > 0) {
+      // Calculate fade-out alpha based on remaining time
+      const fadeProgress = this.flashTimer / this.flashDuration;
+      const alpha = this.flashIntensity * fadeProgress;
+      
+      this.ctx.save();
+      this.ctx.globalAlpha = alpha;
+      this.ctx.fillStyle = '#ffffff';
+      this.ctx.fillRect(0, 0, this.canvas.width, this.canvas.height);
+      this.ctx.restore();
+    }
   }
 
   private renderBackground() {
