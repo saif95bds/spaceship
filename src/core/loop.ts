@@ -275,7 +275,15 @@ export function startGameLoop(canvas: HTMLCanvasElement, ctx: CanvasRenderingCon
           meteoroids.push(...splitMeteoroids);
           
           // Add score points based on meteoroid type and size
-          const baseScore = meteoroid.meteoroidType === 'basalt' ? 10 : meteoroid.meteoroidType === 'ice' ? 15 : 20; // Metal = 20
+          let baseScore = meteoroid.meteoroidType === 'basalt' ? 10 : 
+                         meteoroid.meteoroidType === 'ice' ? 15 : 
+                         meteoroid.meteoroidType === 'fireball' ? 25 : 20; // Metal = 20, Fireball = 25
+          
+          // Double points for fireball meteoroids
+          if (meteoroid.meteoroidType === 'fireball') {
+            baseScore *= 2; // 50 points for fireball
+          }
+          
           const sizeMultiplier = meteoroid.sizeType === 'L' ? 3 : meteoroid.sizeType === 'M' ? 2 : 1;
           const points = baseScore * sizeMultiplier * scoreMultiplier;
           score += points;

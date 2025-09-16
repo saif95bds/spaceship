@@ -80,6 +80,16 @@
       "spin": { "min": -60, "max": 60 },
       "weight": 0.5,
       "collision": { "radiusScale": 0.95 }
+    },
+    {
+      "id": "fireball",
+      "images": { "L": "assets/rocks/fireball_l.png", "M": "assets/rocks/fireball_m.png", "S": "assets/rocks/fireball_s.png" },
+      "hp": { "L": 2, "M": 1, "S": 1 },
+      "split": { "L": [2, "M"], "M": [2, "S"], "S": null },
+      "speed": { "min": 3, "max": 5 },
+      "spin": { "min": -180, "max": 180 },
+      "weight": 0.3,
+      "collision": { "radiusScale": 0.8 }
     }
   ],
   "drift": { "A0": 10, "Amax": 120, "k": 0.05, "omegaRange": [0.6, 1.2] },
@@ -98,7 +108,7 @@
         "4": { "fireRate": 12.0, "barrels": 8 }
       }
     },
-    "scoreMultiplier": { "mult": 2.0, "durationMs": 3000, "showCountdown": true }
+    "scoreMultiplier": { "mult": 2.0, "durationMs": 10000, "showCountdown": true }
   },
   "collision": {
     "mode": "circle",
