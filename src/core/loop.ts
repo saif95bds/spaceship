@@ -38,7 +38,7 @@ export function startGameLoop(canvas: HTMLCanvasElement, ctx: CanvasRenderingCon
 
   // Initialize systems and entities
   const inputSystem = new InputSystem(canvas);
-  const renderSystem = new RenderSystem(canvas, ctx, config);
+  const renderSystem = new RenderSystem(canvas, config);
   const particleSystem = new ParticleSystem();
   const projectilePool = new ProjectilePool(config);
   const particlePool = ParticlePool.getInstance();
@@ -53,6 +53,14 @@ export function startGameLoop(canvas: HTMLCanvasElement, ctx: CanvasRenderingCon
   let rapidFireLevel = 0;
   let scoreMultiplier = 1;
   let scoreMultiplierEndTime = 0;
+  let gameOver = false;
+  let gameOverTime = 0;
+  
+  // Difficulty state
+  let gameStartTime = 0;
+  let currentSpeedMultiplier = 1.0;
+  let lastSpeedIncreaseTime = 0;
+  let difficultyStarted = false;
   
   // Spawning variables
   let lastMeteorospawnTime = 0;
@@ -85,6 +93,26 @@ export function startGameLoop(canvas: HTMLCanvasElement, ctx: CanvasRenderingCon
       // Don't update game logic while tutorial is active
       return;
     }
+    
+    // Don't update game logic if game is over, but check for restart
+    if (gameOver) {
+      // Check for retry button click
+      if (inputSystem.consumeMouseClick()) {
+        const mousePos = inputSystem.getMousePosition();
+        if (mousePos && renderSystem.isRetryButtonClicked(mousePos.x, mousePos.y)) {
+          restartGame(currentTime);
+        }
+      }
+      return;
+    }
+    
+    // Initialize game start time
+    if (gameStartTime === 0) {
+      gameStartTime = currentTime;
+    }
+    
+    // Handle difficulty progression
+    updateDifficulty(currentTime);
     
     // Debug power-up timing every 5 seconds
     if (currentTime % 5000 < 100) {
@@ -136,6 +164,10 @@ export function startGameLoop(canvas: HTMLCanvasElement, ctx: CanvasRenderingCon
       // Update meteoroids
       for (let i = meteoroids.length - 1; i >= 0; i--) {
         const meteoroid = meteoroids[i];
+        
+        // Apply current difficulty speed multiplier
+        meteoroid.setSpeedMultiplier(currentSpeedMultiplier);
+        
         meteoroid.update();
         
         // Remove meteoroids that are off-screen
@@ -175,6 +207,76 @@ export function startGameLoop(canvas: HTMLCanvasElement, ctx: CanvasRenderingCon
       // Update particles
       particleSystem.update(dt);
     }
+  }
+
+  function updateDifficulty(currentTime: number) {
+    if (!config.difficulty.make_it_difficult) return;
+    
+    const gameTimeSeconds = (currentTime - gameStartTime) / 1000;
+    
+    // Check if we should start difficulty increases
+    if (!difficultyStarted && gameTimeSeconds >= config.difficulty.delayBeforeIncreaseSeconds) {
+      difficultyStarted = true;
+      lastSpeedIncreaseTime = currentTime;
+      logger.debug(`Difficulty mode activated after ${config.difficulty.delayBeforeIncreaseSeconds} seconds`);
+      return;
+    }
+    
+    // If difficulty hasn't started yet, return
+    if (!difficultyStarted) return;
+    
+    // Check if it's time for the next speed increase
+    const timeSinceLastIncrease = (currentTime - lastSpeedIncreaseTime) / 1000;
+    if (timeSinceLastIncrease >= config.difficulty.speedIncreaseIntervalSeconds) {
+      // Don't exceed maximum speed multiplier
+      if (currentSpeedMultiplier < config.difficulty.maxSpeedMultiplier) {
+        currentSpeedMultiplier *= config.difficulty.speedMultiplierPerIncrease;
+        
+        // Cap at maximum
+        if (currentSpeedMultiplier > config.difficulty.maxSpeedMultiplier) {
+          currentSpeedMultiplier = config.difficulty.maxSpeedMultiplier;
+        }
+        
+        lastSpeedIncreaseTime = currentTime;
+        
+        logger.debug(`Difficulty increased! Speed multiplier: ${currentSpeedMultiplier.toFixed(2)}x`);
+      }
+    }
+  }
+
+  function restartGame(currentTime: number) {
+    // Reset game state
+    score = 0;
+    rapidFireLevel = 0;
+    scoreMultiplier = 1;
+    scoreMultiplierEndTime = 0;
+    gameOver = false;
+    gameOverTime = 0;
+    
+    // Reset difficulty state
+    gameStartTime = currentTime;
+    currentSpeedMultiplier = 1.0;
+    lastSpeedIncreaseTime = 0;
+    difficultyStarted = false;
+    
+    // Reset spawning variables
+    lastMeteorospawnTime = 0;
+    lastPowerUpSpawnTime = 0;
+    
+    // Reset ship
+    ship.lives = config.ship.lives.start;
+    ship.x = canvas.width / 2;
+    ship.y = canvas.height - 100;
+    
+    // Clear all entities
+    projectiles.length = 0;
+    meteoroids.length = 0;
+    powerUps.length = 0;
+    
+    // Clear particles manually by resetting the particles array
+    // The particle pool will handle cleanup when particles are removed naturally
+    
+    logger.debug('Game restarted');
   }
 
   function selectMeteoruidType() {
@@ -330,6 +432,9 @@ export function startGameLoop(canvas: HTMLCanvasElement, ctx: CanvasRenderingCon
             particleSystem.createMegaBurst(meteoroid.x, meteoroid.y, meteoroid.size);
           }
           
+          // Add static fireworks for verification (if enabled in debug config)
+          renderSystem.addStaticFireworks(meteoroid.x, meteoroid.y, meteoroid.size);
+          
           // Add delayed secondary bursts for large meteoroids
           if (meteoroid.size > 50) {
             setTimeout(() => {
@@ -415,14 +520,15 @@ export function startGameLoop(canvas: HTMLCanvasElement, ctx: CanvasRenderingCon
         renderSystem.addScreenShake(shakeIntensity, 0.5); // Longer duration
         
         // Ship takes damage and becomes invincible
-        const gameOver = ship.takeDamage(currentTime);
+        const shipDestroyed = ship.takeDamage(currentTime);
         
         // Remove the meteoroid that hit the ship
         meteoroids.splice(meteoroidIndex, 1);
         
-        if (gameOver) {
-          logger.debug("Game Over! Ship destroyed.");
-          // TODO: Handle game over state
+        if (shipDestroyed) {
+          gameOver = true;
+          gameOverTime = currentTime;
+          logger.debug(`Game Over! Ship destroyed. Final score: ${score}`);
         }
         
         break; // Only handle one collision per frame
@@ -545,7 +651,8 @@ export function startGameLoop(canvas: HTMLCanvasElement, ctx: CanvasRenderingCon
 
   function render(dt: number, currentTime: number) {
     if (!ctx) return;
-    renderSystem.render(ship, projectiles, meteoroids, powerUps, particleSystem, dt, score, rapidFireLevel, scoreMultiplier, scoreMultiplierEndTime);
+    const currentGameTime = gameStartTime > 0 ? currentTime - gameStartTime : 0;
+    renderSystem.render(ship, projectiles, meteoroids, powerUps, particleSystem, dt, score, rapidFireLevel, scoreMultiplier, scoreMultiplierEndTime, gameOver, gameOverTime || currentGameTime);
     
     // Render debug information
     if (debugSystem.shouldShowFPS() || debugSystem.shouldShowObjectPoolStats()) {

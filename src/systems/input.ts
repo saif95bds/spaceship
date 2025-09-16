@@ -14,6 +14,7 @@ export class InputSystem {
   private isPaused = false;
   private canvas: HTMLCanvasElement;
   private mouseClicked: boolean = false;
+  private mousePosition: { x: number; y: number } | null = null;
 
   constructor(canvas: HTMLCanvasElement) {
     this.canvas = canvas;
@@ -23,8 +24,13 @@ export class InputSystem {
   }
 
   private setupMouseListeners() {
-    this.canvas.addEventListener('click', () => {
+    this.canvas.addEventListener('click', (e) => {
       this.mouseClicked = true;
+      const rect = this.canvas.getBoundingClientRect();
+      this.mousePosition = {
+        x: e.clientX - rect.left,
+        y: e.clientY - rect.top
+      };
     });
   }
 
@@ -129,5 +135,9 @@ export class InputSystem {
     const clicked = this.mouseClicked;
     this.mouseClicked = false;
     return clicked;
+  }
+
+  public getMousePosition(): { x: number; y: number } | null {
+    return this.mousePosition;
   }
 }

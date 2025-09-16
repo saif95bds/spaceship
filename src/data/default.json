@@ -8,6 +8,19 @@
     "show_warnings": true,
     "show_errors": true
   },
+  "debug": {
+    "showStaticFireworks": true,
+    "staticFireworksDuration": 0.05,
+    "fireworksImagePath": "assets/fireworks.png",
+    "fireworksImageScale": 0.05
+  },
+  "difficulty": {
+    "make_it_difficult": true,
+    "delayBeforeIncreaseSeconds": 30,
+    "speedIncreaseIntervalSeconds": 5,
+    "speedMultiplierPerIncrease": 2,
+    "maxSpeedMultiplier": 3.0
+  },
   "canvas": {
     "maxWidth": 700,
     "maxHeight": 1000,

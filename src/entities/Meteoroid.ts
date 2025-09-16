@@ -16,6 +16,8 @@ export class Meteoroid {
   private fireTrail: { x: number; y: number; age: number }[] = [];
   private maxSpeed: number;
   private frameCount: number = 0;
+  private baseSpeed: number; // Store original speed
+  public speedMultiplier: number = 1.0;
 
   constructor(x: number, y: number, sizeType: 'L' | 'M' | 'S', config: MeteoroidConfig) {
     this.x = x;
@@ -30,7 +32,8 @@ export class Meteoroid {
     
     // Set properties based on config and size type
     this.hp = config.hp[sizeType];
-    this.speed = config.speed.min + Math.random() * (config.speed.max - config.speed.min);
+    this.baseSpeed = config.speed.min + Math.random() * (config.speed.max - config.speed.min);
+    this.speed = this.baseSpeed; // Initialize with base speed
     this.maxSpeed = config.speed.max;
     this.rotationSpeed = (config.spin.min + Math.random() * (config.spin.max - config.spin.min)) * (Math.PI / 180) * 0.016; // Convert degrees to radians per frame
     
@@ -57,6 +60,9 @@ export class Meteoroid {
   }
 
   update(): void {
+    // Apply speed multiplier to current speed
+    this.speed = this.baseSpeed * this.speedMultiplier;
+    
     // Move downward
     this.y += this.speed;
     
@@ -296,6 +302,11 @@ export class Meteoroid {
   private isFireball(): boolean {
     // Check if meteoroid is a fireball type
     return this.meteoroidType === 'fireball';
+  }
+
+  // Update speed multiplier for difficulty scaling
+  setSpeedMultiplier(multiplier: number): void {
+    this.speedMultiplier = multiplier;
   }
 
   // Check if meteoroid is off-screen (below canvas)

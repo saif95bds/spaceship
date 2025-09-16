@@ -165,8 +165,25 @@ export interface CanvasConfig {
   aspectRatio: string; // e.g., "4:5" for portrait
 }
 
+export interface DebugConfig {
+  showStaticFireworks: boolean;
+  staticFireworksDuration: number;
+  fireworksImagePath: string;
+  fireworksImageScale: number;
+}
+
+export interface DifficultyConfig {
+  make_it_difficult: boolean;
+  delayBeforeIncreaseSeconds: number;
+  speedIncreaseIntervalSeconds: number;
+  speedMultiplierPerIncrease: number;
+  maxSpeedMultiplier: number;
+}
+
 export interface GameConfig {
   logging: LoggingConfig;
+  debug: DebugConfig;
+  difficulty: DifficultyConfig;
   canvas: CanvasConfig;
   ship: ShipConfig;
   projectile: ProjectileConfig;
