@@ -17,9 +17,12 @@
   "difficulty": {
     "make_it_difficult": true,
     "delayBeforeIncreaseSeconds": 30,
-    "speedIncreaseIntervalSeconds": 5,
-    "speedMultiplierPerIncrease": 2,
-    "maxSpeedMultiplier": 3.0
+    "speedIncreaseIntervalSeconds": 2,
+    "speedMultiplierPerIncrease": 1.5,
+    "maxSpeedMultiplier": 10.0,
+    "hpIncreaseIntervalSeconds": 60,
+    "hpIncreaseAmount": 1,
+    "maxHpIncrease": 5
   },
   "canvas": {
     "maxWidth": 700,
@@ -72,6 +75,10 @@
     "basePerSecond": 1,
     "rateRamp": { "type": "exp", "k": 0.06 }
   },
+  "meteoroidMovement": {
+    "angularFallDegrees": 15,
+    "comment": "Angular fall in degrees from vertical (0=straight down, 10-40=angled). Meteoroids fall at this angle, power-ups always fall straight."
+  },
   "meteoroids": [
     {
       "id": "basalt",
@@ -102,16 +109,6 @@
       "spin": { "min": -60, "max": 60 },
       "weight": 0.5,
       "collision": { "radiusScale": 0.95 }
-    },
-    {
-      "id": "fireball",
-      "images": { "L": "assets/rocks/fireball_l.png", "M": "assets/rocks/fireball_m.png", "S": "assets/rocks/fireball_s.png" },
-      "hp": { "L": 2, "M": 1, "S": 1 },
-      "split": { "L": [2, "M"], "M": [2, "S"], "S": null },
-      "speed": { "min": 3, "max": 5 },
-      "spin": { "min": -180, "max": 180 },
-      "weight": 0.3,
-      "collision": { "radiusScale": 0.8 }
     }
   ],
   "drift": { "A0": 10, "Amax": 120, "k": 0.05, "omegaRange": [0.6, 1.2] },
@@ -125,9 +122,9 @@
       "skins": { "1": "assets/ships/base_rf1.png", "2": "assets/ships/base_rf2.png", "3": "assets/ships/base_rf3.png", "4": "assets/ships/base_rf4.png" },
       "levels": {
         "1": { "fireRate": 6.0, "barrels": 2 },
-        "2": { "fireRate": 8.0, "barrels": 4 },
-        "3": { "fireRate": 10.0, "barrels": 6 },
-        "4": { "fireRate": 12.0, "barrels": 8 }
+        "2": { "fireRate": 8.0, "barrels": 3 },
+        "3": { "fireRate": 10.0, "barrels": 4 },
+        "4": { "fireRate": 12.0, "barrels": 5 }
       }
     },
     "scoreMultiplier": { "mult": 2.0, "durationMs": 10000, "showCountdown": true }
@@ -150,5 +147,21 @@
     "maxSpriteSizePx": 256,
     "policy": "If a loaded image exceeds maxSpriteSizePx or its category target (e.g., ship.spriteTargetPx), scale it down at load time while preserving aspect ratio."
   },
-  "background": { "image": "assets/backgrounds/nebula.png", "fallback": { "type": "starfield", "density": 0.002 } }
+  "background": { "image": "assets/backgrounds/nebula.png", "fallback": { "type": "starfield", "density": 0.002 } },
+  "ads": {
+    "enabled": true,
+    "spawnIntervalSeconds": 3,
+    "fallSpeed": 500,
+    "texts": [
+      "Joy Bangla",
+      "জয় বাংলা"
+    ],
+    "style": {
+      "fontSize": 24,
+      "color": "#FFD700",
+      "outlineColor": "#000000",
+      "outlineWidth": 2,
+      "alpha": 0.8
+    }
+  }
 }

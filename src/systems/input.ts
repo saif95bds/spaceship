@@ -4,6 +4,7 @@ export interface InputState {
     y: number; // -1 to 1
   };
   isPaused: boolean;
+  touchTarget?: { x: number; y: number } | null; // Absolute touch position for smooth fast following
 }
 
 export class InputSystem {
@@ -99,10 +100,17 @@ export class InputSystem {
       y += 1;
     }
 
-    // Touch input (movement delta)
+    // Touch input - provide absolute position for smooth fast following
+    let touchTarget: { x: number; y: number } | null = null;
     if (this.currentTouchPos) {
-      // Use movement delta for natural touch control
-      const sensitivity = 0.1; // Adjust sensitivity as needed
+      const rect = this.canvas.getBoundingClientRect();
+      touchTarget = {
+        x: this.currentTouchPos.x - rect.left,
+        y: this.currentTouchPos.y - rect.top
+      };
+      
+      // Still provide movement delta as fallback (keep existing behavior for other systems)
+      const sensitivity = 0.1;
       x = Math.max(-1, Math.min(1, this.touchMovementDelta.x * sensitivity));
       y = Math.max(-1, Math.min(1, this.touchMovementDelta.y * sensitivity));
       
@@ -119,7 +127,8 @@ export class InputSystem {
 
     return {
       movement: { x, y },
-      isPaused: this.isPaused
+      isPaused: this.isPaused,
+      touchTarget: touchTarget
     };
   }
 

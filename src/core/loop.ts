@@ -11,6 +11,7 @@ import { Ship } from '../entities/Ship';
 import { Projectile } from '../entities/Projectile';
 import { Meteoroid } from '../entities/Meteoroid';
 import { PowerUp, PowerUpType } from '../entities/PowerUp';
+import { Ad } from '../entities/Ad';
 import { GameConfig } from '../types/config';
 import { logger, configureLogging } from '../utils/Logger';
 
@@ -47,6 +48,7 @@ export function startGameLoop(canvas: HTMLCanvasElement, ctx: CanvasRenderingCon
   const projectiles: Projectile[] = [];
   const meteoroids: Meteoroid[] = [];
   const powerUps: PowerUp[] = [];
+  const ads: Ad[] = [];
   
   // Game state
   let score = 0;
@@ -60,13 +62,17 @@ export function startGameLoop(canvas: HTMLCanvasElement, ctx: CanvasRenderingCon
   let gameStartTime = 0;
   let currentSpeedMultiplier = 1.0;
   let lastSpeedIncreaseTime = 0;
+  let currentHpBonus = 0;
+  let lastHpIncreaseTime = 0;
   let difficultyStarted = false;
   
   // Spawning variables
   let lastMeteorospawnTime = 0;
   let lastPowerUpSpawnTime = 0;
+  let lastAdSpawnTime = 0;
   const meteoroidSpawnRate = config.spawn.basePerSecond; // meteoroids per second
   const powerUpSpawnIntervalMs = config.powerUps.spawnFrequencySeconds * 1000;
+  const adSpawnIntervalMs = config.ads.spawnIntervalSeconds * 1000;
   
   logger.debug(`Game initialized - Power-up spawn interval: ${powerUpSpawnIntervalMs}ms (${config.powerUps.spawnFrequencySeconds}s)`);
   logger.debug(`Meteoroid spawn rate: ${meteoroidSpawnRate}/s`);
@@ -81,18 +87,6 @@ export function startGameLoop(canvas: HTMLCanvasElement, ctx: CanvasRenderingCon
     
     // Update debug system with FPS
     debugSystem.updateFPS(dt);
-    
-    // Handle tutorial dismissal
-    if (renderSystem.isTutorialActive()) {
-      // Dismiss tutorial on any input
-      if (input.movement.x !== 0 || input.movement.y !== 0 || 
-          inputSystem.hasAnyKeyPressed() || inputSystem.consumeMouseClick()) {
-        renderSystem.dismissTutorial();
-        logger.debug('Tutorial dismissed by user input');
-      }
-      // Don't update game logic while tutorial is active
-      return;
-    }
     
     // Don't update game logic if game is over, but check for restart
     if (gameOver) {
@@ -123,7 +117,7 @@ export function startGameLoop(canvas: HTMLCanvasElement, ctx: CanvasRenderingCon
     if (!input.isPaused) {
       // Update ship and handle auto-fire with projectile pool
       const newProjectiles = ship.update(dt, input.movement.x, input.movement.y, canvas.width, canvas.height, currentTime, 
-        (x, y) => projectilePool.acquire(x, y));
+        (x, y) => projectilePool.acquire(x, y), input.touchTarget);
       if (newProjectiles.length > 0) {
         projectiles.push(...newProjectiles);
         if (newProjectiles.length > 1) {
@@ -131,10 +125,18 @@ export function startGameLoop(canvas: HTMLCanvasElement, ctx: CanvasRenderingCon
         }
       }
 
-      // Spawn meteoroids
-      if (currentTime - lastMeteorospawnTime > (1000 / meteoroidSpawnRate)) {
+      // Spawn meteoroids with progressive rate increase
+      const gameTimeSeconds = (currentTime - gameStartTime) / 1000;
+      const currentSpawnRate = calculateSpawnRate(gameTimeSeconds);
+      
+      if (currentTime - lastMeteorospawnTime > (1000 / currentSpawnRate)) {
         spawnMeteoroid();
         lastMeteorospawnTime = currentTime;
+        
+        // Debug spawn rate progression (every 10 seconds)
+        if (Math.floor(gameTimeSeconds) % 10 === 0 && Math.floor(gameTimeSeconds) > 0) {
+          logger.debug(`Game time: ${Math.floor(gameTimeSeconds)}s, Spawn rate: ${currentSpawnRate.toFixed(2)}/s (${(currentSpawnRate / config.spawn.basePerSecond).toFixed(1)}x base)`);
+        }
       }
 
       // Spawn power-ups occasionally
@@ -146,6 +148,18 @@ export function startGameLoop(canvas: HTMLCanvasElement, ctx: CanvasRenderingCon
           lastPowerUpSpawnTime = currentTime;
         } catch (error) {
           logger.error('Failed to spawn power-up:', error);
+        }
+      }
+
+      // Spawn ads occasionally (if enabled)
+      if (config.ads.enabled && currentTime - lastAdSpawnTime > adSpawnIntervalMs) {
+        logger.debug(`Spawning ad at time ${currentTime}, interval: ${adSpawnIntervalMs}ms, last spawn: ${lastAdSpawnTime}`);
+        try {
+          spawnAd();
+          logger.debug(`Ad spawned successfully. Total ads: ${ads.length}`);
+          lastAdSpawnTime = currentTime;
+        } catch (error) {
+          logger.error('Failed to spawn ad:', error);
         }
       }
 
@@ -165,13 +179,14 @@ export function startGameLoop(canvas: HTMLCanvasElement, ctx: CanvasRenderingCon
       for (let i = meteoroids.length - 1; i >= 0; i--) {
         const meteoroid = meteoroids[i];
         
-        // Apply current difficulty speed multiplier
+        // Apply current difficulty scaling
         meteoroid.setSpeedMultiplier(currentSpeedMultiplier);
+        meteoroid.setHpBonus(currentHpBonus);
         
         meteoroid.update();
         
         // Remove meteoroids that are off-screen
-        if (meteoroid.isOffScreen(canvas.height)) {
+        if (meteoroid.isOffScreen(canvas.height, canvas.width)) {
           meteoroids.splice(i, 1);
         }
       }
@@ -191,6 +206,24 @@ export function startGameLoop(canvas: HTMLCanvasElement, ctx: CanvasRenderingCon
           logger.error(`Failed to update power-up at index ${i}:`, error);
           // Remove problematic power-up to prevent hanging
           powerUps.splice(i, 1);
+        }
+      }
+
+      // Update ads
+      for (let i = ads.length - 1; i >= 0; i--) {
+        const ad = ads[i];
+        try {
+          ad.update(dt);
+          
+          // Remove ads that are off-screen
+          if (ad.isOffScreen(canvas.height)) {
+            logger.debug(`Removing off-screen ad: "${ad.text}" at y=${ad.y.toFixed(1)}`);
+            ads.splice(i, 1);
+          }
+        } catch (error) {
+          logger.error(`Failed to update ad at index ${i}:`, error);
+          // Remove problematic ad to prevent hanging
+          ads.splice(i, 1);
         }
       }
 
@@ -242,6 +275,24 @@ export function startGameLoop(canvas: HTMLCanvasElement, ctx: CanvasRenderingCon
         logger.debug(`Difficulty increased! Speed multiplier: ${currentSpeedMultiplier.toFixed(2)}x`);
       }
     }
+    
+    // Check if it's time for the next HP increase
+    const timeSinceLastHpIncrease = (currentTime - lastHpIncreaseTime) / 1000;
+    if (timeSinceLastHpIncrease >= config.difficulty.hpIncreaseIntervalSeconds) {
+      // Don't exceed maximum HP increase
+      if (currentHpBonus < config.difficulty.maxHpIncrease) {
+        currentHpBonus += config.difficulty.hpIncreaseAmount;
+        
+        // Cap at maximum
+        if (currentHpBonus > config.difficulty.maxHpIncrease) {
+          currentHpBonus = config.difficulty.maxHpIncrease;
+        }
+        
+        lastHpIncreaseTime = currentTime;
+        
+        logger.debug(`Difficulty increased! HP bonus: +${currentHpBonus}`);
+      }
+    }
   }
 
   function restartGame(currentTime: number) {
@@ -257,21 +308,26 @@ export function startGameLoop(canvas: HTMLCanvasElement, ctx: CanvasRenderingCon
     gameStartTime = currentTime;
     currentSpeedMultiplier = 1.0;
     lastSpeedIncreaseTime = 0;
+    currentHpBonus = 0;
+    lastHpIncreaseTime = 0;
     difficultyStarted = false;
     
     // Reset spawning variables
     lastMeteorospawnTime = 0;
     lastPowerUpSpawnTime = 0;
+    lastAdSpawnTime = 0;
     
     // Reset ship
     ship.lives = config.ship.lives.start;
     ship.x = canvas.width / 2;
     ship.y = canvas.height - 100;
+    ship.resetToDefault(); // Reset barrels and skin to default
     
     // Clear all entities
     projectiles.length = 0;
     meteoroids.length = 0;
     powerUps.length = 0;
+    ads.length = 0;
     
     // Clear particles manually by resetting the particles array
     // The particle pool will handle cleanup when particles are removed naturally
@@ -324,10 +380,10 @@ export function startGameLoop(canvas: HTMLCanvasElement, ctx: CanvasRenderingCon
     
     const y = -config.spawn.margin; // Start above screen (use margin from config)
     
-    const meteoroid = new Meteoroid(x, y, size, meteoroidConfig);
+    const meteoroid = new Meteoroid(x, y, size, meteoroidConfig, config.meteoroidMovement.angularFallDegrees, currentHpBonus);
     
     // Debug logging to verify type weighting and safety margin
-    logger.debug(`Spawned ${meteoroidConfig.id} meteoroid (${size}) at (${x.toFixed(1)}, ${y}) - Ship at (${ship.x.toFixed(1)}, ${ship.y.toFixed(1)}) - Distance: ${Math.abs(x - ship.x).toFixed(1)}px`);
+    logger.debug(`Spawned ${meteoroidConfig.id} meteoroid (${size}) at (${x.toFixed(1)}, ${y}) with ${config.meteoroidMovement.angularFallDegrees}° fall, HP: ${meteoroid.hp} (base+${currentHpBonus}) - Ship at (${ship.x.toFixed(1)}, ${ship.y.toFixed(1)}) - Distance: ${Math.abs(x - ship.x).toFixed(1)}px`);
     
     meteoroids.push(meteoroid);
   }
@@ -347,6 +403,38 @@ export function startGameLoop(canvas: HTMLCanvasElement, ctx: CanvasRenderingCon
     powerUps.push(powerUp);
     
     logger.debug(`Spawned ${randomType} power-up at (${x.toFixed(1)}, ${y}). Total power-ups: ${powerUps.length}`);
+  }
+
+  function spawnAd() {
+    // Choose random ad text from config
+    const texts = config.ads.texts;
+    if (texts.length === 0) {
+      logger.warn('No ad texts configured, skipping ad spawn');
+      return;
+    }
+    const randomText = texts[Math.floor(Math.random() * texts.length)];
+    
+    // Spawn position: random X across screen width, above screen
+    const x = Math.random() * canvas.width;
+    const y = -50;
+    
+    logger.debug(`Canvas dimensions: ${canvas.width}x${canvas.height}, spawning ad "${randomText}" at (${x.toFixed(1)}, ${y})`);
+    
+    const ad = new Ad(x, y, randomText, config.ads);
+    ads.push(ad);
+    
+    logger.debug(`Spawned ad "${randomText}" at (${x.toFixed(1)}, ${y}). Total ads: ${ads.length}`);
+  }
+
+  function calculateSpawnRate(gameTimeSeconds: number): number {
+    // Use exponential growth based on config: rate = baseRate * e^(k * time)
+    const baseRate = config.spawn.basePerSecond;
+    const k = config.spawn.rateRamp.k;
+    const currentRate = baseRate * Math.exp(k * gameTimeSeconds);
+    
+    // Optional: cap the maximum spawn rate to prevent overwhelming gameplay
+    const maxRate = baseRate * 10; // Max 10x the base rate
+    return Math.min(currentRate, maxRate);
   }
 
   function handleCollisions(currentTime: number) {
@@ -652,7 +740,7 @@ export function startGameLoop(canvas: HTMLCanvasElement, ctx: CanvasRenderingCon
   function render(dt: number, currentTime: number) {
     if (!ctx) return;
     const currentGameTime = gameStartTime > 0 ? currentTime - gameStartTime : 0;
-    renderSystem.render(ship, projectiles, meteoroids, powerUps, particleSystem, dt, score, rapidFireLevel, scoreMultiplier, scoreMultiplierEndTime, gameOver, gameOverTime || currentGameTime);
+    renderSystem.render(ship, projectiles, meteoroids, powerUps, ads, particleSystem, dt, score, rapidFireLevel, scoreMultiplier, scoreMultiplierEndTime, gameOver, gameOverTime || currentGameTime);
     
     // Render debug information
     if (debugSystem.shouldShowFPS() || debugSystem.shouldShowObjectPoolStats()) {

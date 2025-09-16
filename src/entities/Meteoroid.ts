@@ -3,11 +3,14 @@ import { MeteoroidConfig } from '../types/config';
 export class Meteoroid {
   public x: number;
   public y: number;
+  public vx: number; // Horizontal velocity
+  public vy: number; // Vertical velocity
   public size: number;
   public speed: number;
   public rotation: number = 0;
   public rotationSpeed: number;
   public hp: number;
+  private baseHp: number; // Store original HP
   public sizeType: 'L' | 'M' | 'S';
   public meteoroidType: string;
   private image: HTMLImageElement;
@@ -17,9 +20,13 @@ export class Meteoroid {
   private maxSpeed: number;
   private frameCount: number = 0;
   private baseSpeed: number; // Store original speed
+  private baseVx: number; // Store original horizontal velocity
+  private baseVy: number; // Store original vertical velocity
+  private angularFallDegrees: number; // Store angular fall configuration
   public speedMultiplier: number = 1.0;
+  public hpBonus: number = 0; // Additional HP from difficulty scaling
 
-  constructor(x: number, y: number, sizeType: 'L' | 'M' | 'S', config: MeteoroidConfig) {
+  constructor(x: number, y: number, sizeType: 'L' | 'M' | 'S', config: MeteoroidConfig, angularFallDegrees: number = 0, hpBonus: number = 0) {
     this.x = x;
     this.y = y;
     this.sizeType = sizeType;
@@ -31,11 +38,33 @@ export class Meteoroid {
     this.size = sizeMap[sizeType];
     
     // Set properties based on config and size type
-    this.hp = config.hp[sizeType];
+    this.baseHp = config.hp[sizeType];
+    this.hpBonus = hpBonus;
+    this.hp = this.baseHp + this.hpBonus; // Initialize with base HP + bonus
     this.baseSpeed = config.speed.min + Math.random() * (config.speed.max - config.speed.min);
     this.speed = this.baseSpeed; // Initialize with base speed
     this.maxSpeed = config.speed.max;
     this.rotationSpeed = (config.spin.min + Math.random() * (config.spin.max - config.spin.min)) * (Math.PI / 180) * 0.016; // Convert degrees to radians per frame
+    
+    // Store angular fall configuration
+    this.angularFallDegrees = angularFallDegrees;
+    
+    // Calculate angular movement
+    // Convert degrees to radians and add some randomness (-15% to +15% of the angle)
+    const randomVariation = (Math.random() - 0.5) * 0.3; // -15% to +15%
+    const finalAngleDegrees = angularFallDegrees * (1 + randomVariation);
+    const angleRadians = finalAngleDegrees * (Math.PI / 180);
+    
+    // Randomly choose left or right direction
+    const direction = Math.random() < 0.5 ? -1 : 1;
+    
+    // Calculate velocity components (positive Y is downward)
+    this.baseVx = Math.sin(angleRadians) * this.baseSpeed * direction;
+    this.baseVy = Math.cos(angleRadians) * this.baseSpeed; // cos for downward component
+    
+    // Initialize current velocities
+    this.vx = this.baseVx;
+    this.vy = this.baseVy;
     
     // Load meteoroid sprite based on size
     this.image = new Image();
@@ -60,71 +89,45 @@ export class Meteoroid {
   }
 
   update(): void {
-    // Apply speed multiplier to current speed
+    // Apply speed multiplier to current speed and velocity components
     this.speed = this.baseSpeed * this.speedMultiplier;
+    this.vx = this.baseVx * this.speedMultiplier;
+    this.vy = this.baseVy * this.speedMultiplier;
     
-    // Move downward
-    this.y += this.speed;
+    // Move using velocity components
+    this.x += this.vx;
+    this.y += this.vy;
     
     // Rotate the meteoroid
     this.rotation += this.rotationSpeed;
     
     this.frameCount++;
     
-    // Add fire trail for fireball meteoroids (always) or fast meteoroids
-    if (this.isFireball()) {
-      // Create vertical teardrop comet shape - multiple trail points at different distances
-      const trailPoints = [
-        { distance: 0.3, spread: 0.2 }, // Close to meteoroid, narrow
-        { distance: 0.6, spread: 0.4 }, // Medium distance, wider
-        { distance: 1.0, spread: 0.6 }, // Far from meteoroid, widest
-        { distance: 1.5, spread: 0.8 }, // Very far, creating the long tail
-        { distance: 2.0, spread: 0.9 }, // Extreme distance for dramatic tail
-      ];
+        // Add fire trail for fast-moving meteoroids
+    if (this.isFastMoving()) {
+      this.fireTrail.unshift({ x: this.x, y: this.y, age: 0 });
       
-      // Generate multiple trail points per frame for dense comet effect
-      for (const point of trailPoints) {
-        // Add some randomness to make it look natural
-        if (Math.random() < 0.8) { // 80% chance to add each point
-          this.fireTrail.push({
-            x: this.x + (Math.random() - 0.5) * this.size * point.spread,
-            y: this.y - this.size * point.distance, // Negative Y creates upward trail
-            age: 0
-          });
-        }
-      }
-      
-      // Add extra density for the core trail
-      if (this.frameCount % 2 === 0) {
-        this.fireTrail.push({
-          x: this.x + (Math.random() - 0.5) * this.size * 0.3,
-          y: this.y - this.size * 0.8, // Core trail point
-          age: 0
-        });
-      }
-    } else if (this.isFastMoving() && this.frameCount % 1 === 0) {
-      // Standard trail for fast-moving non-fireball meteoroids
-      this.fireTrail.push({
-        x: this.x + (Math.random() - 0.5) * this.size * 0.6,
-        y: this.y - this.size * 0.4, // Also make standard trails go upward
-        age: 0
+      // Keep trail length manageable - shorter for elegant appearance
+      const maxAge = 50;
+      this.fireTrail = this.fireTrail.filter(point => {
+        point.age++;
+        return point.age < maxAge;
       });
-    }
-    
-    // Update and remove old trail points
-    for (let i = this.fireTrail.length - 1; i >= 0; i--) {
-      this.fireTrail[i].age++;
-      // Fireball trails last much longer for dramatic comet effect (80 frames vs 35 for standard)
-      const maxAge = this.isFireball() ? 80 : 35;
-      if (this.fireTrail[i].age > maxAge) {
-        this.fireTrail.splice(i, 1);
-      }
+    } else {
+      // Standard trail for other meteoroids
+      this.fireTrail.unshift({ x: this.x, y: this.y, age: 0 });
+      
+      // Keep trail length manageable
+      this.fireTrail = this.fireTrail.filter(point => {
+        point.age++;
+        return point.age < 35;
+      });
     }
   }
 
   render(ctx: CanvasRenderingContext2D): void {
     // Render fire trail first (behind the meteoroid)
-    if (this.isFastMoving() || this.isFireball()) {
+    if (this.isFastMoving()) {
       this.renderFireTrail(ctx);
     }
     
@@ -134,52 +137,39 @@ export class Meteoroid {
     ctx.translate(this.x, this.y);
     ctx.rotate(this.rotation);
     
-    // Add fire glow around fast meteoroids and fireballs (thinner front layer)
-    if (this.isFastMoving() || this.isFireball()) {
-      if (this.isFireball()) {
-        // Enhanced comet head glow for fireball meteoroids - bright teardrop shape
-        ctx.save();
-        
-        // Create the bright comet head - more circular for the meteoroid itself
-        const headGradient = ctx.createRadialGradient(0, 0, this.size / 10, 0, 0, this.size * 0.7);
-        headGradient.addColorStop(0, 'rgba(255, 255, 255, 0.9)'); // Bright white-hot center
-        headGradient.addColorStop(0.2, 'rgba(255, 255, 200, 0.8)'); // Hot white-yellow
-        headGradient.addColorStop(0.4, 'rgba(255, 240, 150, 0.7)'); // Bright yellow
-        headGradient.addColorStop(0.6, 'rgba(255, 200, 100, 0.5)'); // Golden
-        headGradient.addColorStop(0.8, 'rgba(255, 150, 60, 0.3)'); // Orange
-        headGradient.addColorStop(1, 'rgba(255, 100, 30, 0)'); // Transparent orange edge
-        ctx.fillStyle = headGradient;
-        ctx.beginPath();
-        ctx.arc(0, 0, this.size * 0.7, 0, Math.PI * 2);
-        ctx.fill();
-        
-        // Add secondary atmospheric glow extending backwards
-        ctx.save();
-        ctx.scale(0.8, 1.2); // Slightly elongated backwards
-        const atmosphereGradient = ctx.createRadialGradient(0, 0, this.size / 8, 0, this.size * 0.3, this.size * 1.0);
-        atmosphereGradient.addColorStop(0, 'rgba(255, 200, 100, 0.3)'); // Golden center
-        atmosphereGradient.addColorStop(0.4, 'rgba(255, 150, 60, 0.2)'); // Orange
-        atmosphereGradient.addColorStop(0.7, 'rgba(255, 100, 30, 0.1)'); // Deep orange
-        atmosphereGradient.addColorStop(1, 'rgba(200, 50, 20, 0)'); // Transparent red edge
-        ctx.fillStyle = atmosphereGradient;
-        ctx.beginPath();
-        ctx.arc(0, 0, this.size * 1.0, 0, Math.PI * 2);
-        ctx.fill();
-        ctx.restore();
-        
-        ctx.restore();
-      } else {
-        // Standard glow for fast meteoroids - also made thinner
-        const gradient = ctx.createRadialGradient(0, 0, this.size / 8, 0, 0, this.size * 0.6);
-        gradient.addColorStop(0, 'rgba(255, 240, 150, 0.4)'); // Reduced opacity
-        gradient.addColorStop(0.4, 'rgba(255, 180, 100, 0.3)');
-        gradient.addColorStop(0.7, 'rgba(255, 120, 60, 0.15)');
-        gradient.addColorStop(1, 'rgba(200, 80, 40, 0)');
-        ctx.fillStyle = gradient;
-        ctx.beginPath();
-        ctx.arc(0, 0, this.size * 0.6, 0, Math.PI * 2);
-        ctx.fill();
-      }
+    // Add fire glow around fast meteoroids (thinner front layer)
+    if (this.isFastMoving()) {
+      // Enhanced comet head glow for fast meteoroids - bright teardrop shape
+      ctx.save();
+      
+      // Create the bright comet head - more circular for the meteoroid itself
+      const headGradient = ctx.createRadialGradient(0, 0, this.size / 10, 0, 0, this.size * 0.7);
+      headGradient.addColorStop(0, 'rgba(255, 255, 255, 0.9)'); // Bright white-hot center
+      headGradient.addColorStop(0.2, 'rgba(255, 255, 200, 0.8)'); // Hot white-yellow
+      headGradient.addColorStop(0.4, 'rgba(255, 240, 150, 0.7)'); // Bright yellow
+      headGradient.addColorStop(0.6, 'rgba(255, 200, 100, 0.5)'); // Golden
+      headGradient.addColorStop(0.8, 'rgba(255, 150, 60, 0.3)'); // Orange
+      headGradient.addColorStop(1, 'rgba(255, 100, 30, 0)'); // Transparent orange edge
+      ctx.fillStyle = headGradient;
+      ctx.beginPath();
+      ctx.arc(0, 0, this.size * 0.7, 0, Math.PI * 2);
+      ctx.fill();
+      
+      // Add secondary atmospheric glow extending backwards
+      ctx.save();
+      ctx.scale(0.8, 1.2); // Slightly elongated backwards
+      const atmosphereGradient = ctx.createRadialGradient(0, 0, this.size / 8, 0, this.size * 0.3, this.size * 1.0);
+      atmosphereGradient.addColorStop(0, 'rgba(255, 200, 100, 0.3)'); // Golden center
+      atmosphereGradient.addColorStop(0.4, 'rgba(255, 150, 60, 0.2)'); // Orange
+      atmosphereGradient.addColorStop(0.7, 'rgba(255, 100, 30, 0.1)'); // Deep orange
+      atmosphereGradient.addColorStop(1, 'rgba(200, 50, 20, 0)'); // Transparent red edge
+      ctx.fillStyle = atmosphereGradient;
+      ctx.beginPath();
+      ctx.arc(0, 0, this.size * 1.0, 0, Math.PI * 2);
+      ctx.fill();
+      ctx.restore();
+      
+      ctx.restore();
     }
     
     if (this.imageLoaded) {
@@ -209,6 +199,49 @@ export class Meteoroid {
       ctx.arc(this.size / 6, this.size / 8, this.size / 10, 0, Math.PI * 2);
       ctx.fill();
     }
+
+    // Add fireball effect on top of meteoroid when moving at 90% max speed
+    if (this.isFastMoving()) {
+      ctx.save();
+      
+      // Create flickering fire effect on top
+      const fireRadius = this.size * 0.4;
+      const flickerIntensity = 0.8 + Math.sin(this.frameCount * 0.3) * 0.2; // Flickering between 0.6 and 1.0
+      
+      // Main fire gradient
+      const fireGradient = ctx.createRadialGradient(0, 0, 0, 0, 0, fireRadius);
+      fireGradient.addColorStop(0, `rgba(255, 255, 200, ${0.9 * flickerIntensity})`); // Hot white center
+      fireGradient.addColorStop(0.3, `rgba(255, 200, 100, ${0.8 * flickerIntensity})`); // Yellow-orange
+      fireGradient.addColorStop(0.6, `rgba(255, 120, 60, ${0.6 * flickerIntensity})`); // Orange
+      fireGradient.addColorStop(0.8, `rgba(255, 60, 30, ${0.4 * flickerIntensity})`); // Red-orange
+      fireGradient.addColorStop(1, `rgba(200, 30, 10, 0)`); // Transparent red edge
+      
+      ctx.fillStyle = fireGradient;
+      ctx.beginPath();
+      ctx.arc(0, 0, fireRadius, 0, Math.PI * 2);
+      ctx.fill();
+      
+      // Add small flame particles around the edge
+      for (let i = 0; i < 8; i++) {
+        const angle = (i / 8) * Math.PI * 2 + this.frameCount * 0.1;
+        const distance = fireRadius * 0.7;
+        const particleX = Math.cos(angle) * distance;
+        const particleY = Math.sin(angle) * distance;
+        const particleSize = (this.size * 0.1) * (0.5 + Math.sin(this.frameCount * 0.4 + i) * 0.3);
+        
+        const particleGradient = ctx.createRadialGradient(particleX, particleY, 0, particleX, particleY, particleSize);
+        particleGradient.addColorStop(0, `rgba(255, 200, 100, ${0.6 * flickerIntensity})`);
+        particleGradient.addColorStop(0.7, `rgba(255, 100, 30, ${0.4 * flickerIntensity})`);
+        particleGradient.addColorStop(1, 'rgba(200, 50, 20, 0)');
+        
+        ctx.fillStyle = particleGradient;
+        ctx.beginPath();
+        ctx.arc(particleX, particleY, particleSize, 0, Math.PI * 2);
+        ctx.fill();
+      }
+      
+      ctx.restore();
+    }
     
     ctx.restore();
   }
@@ -221,41 +254,47 @@ export class Meteoroid {
     // Draw trail from oldest to newest
     for (let i = 0; i < this.fireTrail.length; i++) {
       const point = this.fireTrail[i];
-      const maxAge = this.isFireball() ? 80 : 35; // Fireball trails last much longer for dramatic comet effect
+      const maxAge = this.isFastMoving() ? 50 : 35; // Shorter trails for fast meteoroids - more elegant
       const progress = point.age / maxAge;
       
-      // Enhanced effects for fireball meteoroids - vertical teardrop comet
-      if (this.isFireball()) {
-        const alpha = (1 - progress) * 1.0;
+      // Enhanced effects for fast-moving meteoroids - directional comet trail
+      if (this.isFastMoving()) {
+        const alpha = (1 - progress) * 0.9;
         
-        // Calculate distance from meteoroid center for teardrop effect
-        const distanceFromHead = Math.abs(point.y - this.y);
-        const maxDistance = this.size * 2.0;
+        // Calculate movement direction for trail alignment
+        const dx = this.vx;
+        const dy = this.vy;
+        const angle = Math.atan2(dy, dx);
         
-        // Size varies based on distance - larger at the head, tapering to tail
-        const distanceFactor = Math.max(0.2, 1 - (distanceFromHead / maxDistance));
-        const size = (1 - progress) * this.size * 0.9 * distanceFactor;
+        // Calculate distance from meteoroid center along movement direction
+        const distanceFromHead = Math.sqrt(
+          Math.pow(point.x - this.x, 2) + Math.pow(point.y - this.y, 2)
+        );
+        const maxDistance = this.size * 1.5; // Shorter trail length
+        
+        // Size varies based on distance - thinner overall for elegance
+        const distanceFactor = Math.max(0.3, 1 - (distanceFromHead / maxDistance));
+        const size = (1 - progress) * this.size * 0.5 * distanceFactor; // Much thinner (0.5 vs 0.9)
         
         ctx.save();
         ctx.translate(point.x, point.y);
+        ctx.rotate(angle); // Align with movement direction
         
-        // Create vertical teardrop shape - taller and narrower as we go back
-        const verticalStretch = 1 + (distanceFromHead / maxDistance) * 2; // More stretched further back
-        const horizontalSqueeze = Math.max(0.4, 1 - (distanceFromHead / maxDistance) * 0.6); // Narrower further back
-        ctx.scale(horizontalSqueeze, verticalStretch);
+        // Create directional ellipse shape - thin and elongated in movement direction
+        const elongation = 1.8; // Stretch along movement direction
+        const compression = 0.4; // Compress perpendicular to movement
+        ctx.scale(elongation, compression);
         
-        // Enhanced gradient for teardrop comet effect
+        // Enhanced gradient for directional comet effect
         const gradient = ctx.createRadialGradient(0, 0, 0, 0, 0, size);
         
-        // Colors transition from white-hot at head to deep red at tail
-        const headIntensity = Math.max(0.3, distanceFactor);
+        // Colors transition from bright at head to deep at tail
+        const headIntensity = Math.max(0.4, distanceFactor);
         gradient.addColorStop(0, `rgba(255, 255, 255, ${alpha * headIntensity})`); // White-hot center
-        gradient.addColorStop(0.1, `rgba(255, 255, 200, ${alpha * headIntensity * 0.9})`); // Hot white-yellow
-        gradient.addColorStop(0.2, `rgba(255, 240, 150, ${alpha * headIntensity * 0.8})`); // Bright yellow
-        gradient.addColorStop(0.4, `rgba(255, 200, 100, ${alpha * headIntensity * 0.7})`); // Golden
-        gradient.addColorStop(0.6, `rgba(255, 150, 60, ${alpha * headIntensity * 0.6})`); // Orange
-        gradient.addColorStop(0.8, `rgba(255, 100, 30, ${alpha * headIntensity * 0.4})`); // Deep orange
-        gradient.addColorStop(1, `rgba(200, 50, 20, 0)`); // Transparent red edge
+        gradient.addColorStop(0.2, `rgba(255, 240, 180, ${alpha * headIntensity * 0.9})`); // Hot yellow
+        gradient.addColorStop(0.4, `rgba(255, 200, 120, ${alpha * headIntensity * 0.7})`); // Golden
+        gradient.addColorStop(0.7, `rgba(255, 120, 60, ${alpha * headIntensity * 0.5})`); // Orange
+        gradient.addColorStop(1, `rgba(180, 60, 30, 0)`); // Transparent red edge
         
         ctx.fillStyle = gradient;
         ctx.beginPath();
@@ -264,25 +303,24 @@ export class Meteoroid {
         
         ctx.restore();
         
-        // Add extra sparkle effect for fireballs
-        if (i < this.fireTrail.length * 0.3) { // Only for newest 30% of trail
-          ctx.fillStyle = `rgba(255, 255, 255, ${alpha * 0.8})`;
+        // Add subtle sparkle effect for fast meteoroids
+        if (i < this.fireTrail.length * 0.2) { // Only for newest 20% of trail
+          ctx.fillStyle = `rgba(255, 255, 255, ${alpha * 0.6})`;
           ctx.beginPath();
-          ctx.arc(point.x + Math.sin(point.age * 0.5) * 3, point.y + Math.cos(point.age * 0.3) * 2, 2, 0, Math.PI * 2);
+          ctx.arc(point.x + Math.sin(point.age * 0.4) * 1.5, point.y + Math.cos(point.age * 0.3) * 1, 1.5, 0, Math.PI * 2);
           ctx.fill();
         }
       } else {
         // Standard trail for other meteoroids
-        const alpha = (1 - progress) * 0.9;
-        const size = (1 - progress) * this.size * 0.7;
+        const alpha = (1 - progress) * 0.8;
+        const size = (1 - progress) * this.size * 0.6;
         
         const gradient = ctx.createRadialGradient(point.x, point.y, 0, point.x, point.y, size);
         gradient.addColorStop(0, `rgba(255, 255, 200, ${alpha})`);
-        gradient.addColorStop(0.2, `rgba(255, 245, 150, ${alpha * 0.9})`);
-        gradient.addColorStop(0.4, `rgba(255, 200, 100, ${alpha * 0.8})`);
-        gradient.addColorStop(0.6, `rgba(255, 150, 80, ${alpha * 0.7})`);
-        gradient.addColorStop(0.8, `rgba(220, 100, 50, ${alpha * 0.5})`);
-        gradient.addColorStop(1, `rgba(150, 50, 20, 0)`);
+        gradient.addColorStop(0.3, `rgba(255, 220, 150, ${alpha * 0.8})`);
+        gradient.addColorStop(0.6, `rgba(255, 180, 100, ${alpha * 0.6})`);
+        gradient.addColorStop(0.8, `rgba(220, 120, 60, ${alpha * 0.4})`);
+        gradient.addColorStop(1, `rgba(150, 60, 30, 0)`);
         
         ctx.fillStyle = gradient;
         ctx.beginPath();
@@ -299,19 +337,37 @@ export class Meteoroid {
     return this.speed >= this.maxSpeed * 0.9;
   }
 
-  private isFireball(): boolean {
-    // Check if meteoroid is a fireball type
-    return this.meteoroidType === 'fireball';
-  }
-
   // Update speed multiplier for difficulty scaling
   setSpeedMultiplier(multiplier: number): void {
     this.speedMultiplier = multiplier;
   }
 
-  // Check if meteoroid is off-screen (below canvas)
-  isOffScreen(canvasHeight: number): boolean {
-    return this.y - this.size / 2 > canvasHeight;
+  // Update HP bonus for difficulty scaling
+  setHpBonus(bonus: number): void {
+    // Only update if the bonus has actually changed
+    if (this.hpBonus !== bonus) {
+      const hpDifference = bonus - this.hpBonus;
+      this.hpBonus = bonus;
+      this.hp += hpDifference; // Add the difference instead of resetting
+    }
+  }
+
+  // Check if meteoroid is off-screen (below canvas or outside horizontal bounds)
+  isOffScreen(canvasHeight: number, canvasWidth: number = 0): boolean {
+    // Check if below screen
+    if (this.y - this.size / 2 > canvasHeight) {
+      return true;
+    }
+    
+    // Check if outside horizontal bounds (with some margin for angular movement)
+    if (canvasWidth > 0) {
+      const margin = this.size; // Allow one meteoroid-width margin
+      if (this.x + this.size / 2 < -margin || this.x - this.size / 2 > canvasWidth + margin) {
+        return true;
+      }
+    }
+    
+    return false;
   }
 
   // Get collision radius for collision detection
@@ -351,7 +407,7 @@ export class Meteoroid {
       const newX = this.x + Math.cos(angle) * offset;
       const newY = this.y + Math.sin(angle) * offset;
       
-      const newMeteoroid = new Meteoroid(newX, newY, newSizeType as 'L' | 'M' | 'S', this.config);
+      const newMeteoroid = new Meteoroid(newX, newY, newSizeType as 'L' | 'M' | 'S', this.config, this.angularFallDegrees, this.hpBonus);
       // Give split meteoroids a slight velocity away from center
       newMeteoroid.speed *= 0.8; // Slightly slower than parent
       newMeteoroids.push(newMeteoroid);

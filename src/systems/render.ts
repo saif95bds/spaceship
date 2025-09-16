@@ -3,6 +3,7 @@ import { Ship } from '../entities/Ship';
 import { Projectile } from '../entities/Projectile';
 import { Meteoroid } from '../entities/Meteoroid';
 import { PowerUp } from '../entities/PowerUp';
+import { Ad } from '../entities/Ad';
 import { ParticleSystem } from './particles';
 import { DebugSystem } from './DebugSystem';
 import { logger } from '../utils/Logger';
@@ -24,8 +25,6 @@ export class RenderSystem {
   private backgroundImage: HTMLImageElement | null = null;
   private backgroundImageLoaded: boolean = false;
   private backgroundImageFailed: boolean = false;
-  private showTutorial: boolean = true;
-  private tutorialStartTime: number = Date.now();
   
   // Screen shake
   private shakeIntensity: number = 0;
@@ -69,7 +68,6 @@ export class RenderSystem {
     this.canvas = canvas;
     this.ctx = canvas.getContext('2d')!;
     this.config = config;
-    this.showTutorial = true;
     this.time = 0;
     this.loadFireworksImage();
   }
@@ -385,6 +383,7 @@ export class RenderSystem {
     projectiles: Projectile[], 
     meteoroids: Meteoroid[], 
     powerUps: PowerUp[], 
+    ads: Ad[], 
     particleSystem: ParticleSystem, 
     deltaTime: number,
     score: number = 0,
@@ -409,7 +408,7 @@ export class RenderSystem {
     this.renderBackground();
     
     // Layer 2: Entities and Effects
-    this.renderEntities(ship, projectiles, meteoroids, powerUps, particleSystem);
+    this.renderEntities(ship, projectiles, meteoroids, powerUps, ads, particleSystem);
     
     // Layer 3: HUD
     this.renderHUD(ship, score, rapidFireLevel, scoreMultiplier, scoreMultiplierEndTime, currentGameTime);
@@ -423,12 +422,7 @@ export class RenderSystem {
     // Layer 5: Static Fireworks Overlay
     this.renderStaticFireworks();
     
-    // Layer 6: Tutorial Overlay (if active)
-    if (this.showTutorial) {
-      this.renderTutorialOverlay();
-    }
-    
-    // Layer 7: Game Over Overlay (if game is over)
+    // Layer 6: Game Over Overlay (if game is over)
     if (gameOver) {
       this.renderGameOverOverlay(score, currentGameTime);
     }
@@ -645,7 +639,7 @@ export class RenderSystem {
     }
   }
 
-  private renderEntities(ship: Ship, projectiles: Projectile[], meteoroids: Meteoroid[], powerUps: PowerUp[], particleSystem: ParticleSystem) {
+  private renderEntities(ship: Ship, projectiles: Projectile[], meteoroids: Meteoroid[], powerUps: PowerUp[], ads: Ad[], particleSystem: ParticleSystem) {
     // Render meteoroids (behind other entities)
     for (const meteoroid of meteoroids) {
       meteoroid.render(this.ctx);
@@ -657,6 +651,14 @@ export class RenderSystem {
     }
     for (const powerUp of powerUps) {
       powerUp.render(this.ctx);
+    }
+
+    // Render ads
+    if (ads.length > 0 && Math.random() < 0.1) { // Reduce debug spam
+      logger.debug(`Rendering ${ads.length} ad(s)`);
+    }
+    for (const ad of ads) {
+      ad.render(this.ctx);
     }
 
     // Render projectiles
@@ -882,69 +884,7 @@ export class RenderSystem {
     this.ctx.restore();
   }
 
-  public dismissTutorial() {
-    this.showTutorial = false;
-  }
 
-  public isTutorialActive(): boolean {
-    return this.showTutorial;
-  }
-
-  private renderTutorialOverlay() {
-    this.ctx.save();
-    
-    // Semi-transparent dark overlay
-    this.ctx.fillStyle = 'rgba(0, 0, 0, 0.8)';
-    this.ctx.fillRect(0, 0, this.canvas.width, this.canvas.height);
-    
-    // Responsive tutorial panel
-    const isSmallScreen = this.canvas.width < 600 || this.canvas.height < 500;
-    const panelWidth = Math.min(isSmallScreen ? 350 : 400, this.canvas.width - 40);
-    const panelHeight = isSmallScreen ? 220 : 250;
-    const panelX = (this.canvas.width - panelWidth) / 2;
-    const panelY = (this.canvas.height - panelHeight) / 2;
-    
-    // Panel background with rounded corners
-    this.ctx.fillStyle = 'rgba(20, 30, 50, 0.95)';
-    this.ctx.strokeStyle = '#4a90e2';
-    this.ctx.lineWidth = 2;
-    
-    this.ctx.beginPath();
-    this.ctx.roundRect(panelX, panelY, panelWidth, panelHeight, 15);
-    this.ctx.fill();
-    this.ctx.stroke();
-    
-    // Tutorial content
-    this.ctx.fillStyle = '#ffffff';
-    this.ctx.textAlign = 'center';
-    this.ctx.textBaseline = 'middle';
-    
-    // Title (responsive font size)
-    this.ctx.font = `bold ${isSmallScreen ? '22px' : '28px'} "Segoe UI", Arial, sans-serif`;
-    this.ctx.fillText('Welcome to Space Defender!', panelX + panelWidth / 2, panelY + (isSmallScreen ? 40 : 50));
-    
-    // Instructions (responsive font size)
-    this.ctx.font = `${isSmallScreen ? '14px' : '18px'} "Segoe UI", Arial, sans-serif`;
-    const centerX = panelX + panelWidth / 2;
-    let yPos = panelY + (isSmallScreen ? 75 : 90);
-    const lineSpacing = isSmallScreen ? 25 : 30;
-    
-    this.ctx.fillText('🎮 Move with Arrow Keys or WASD', centerX, yPos);
-    yPos += lineSpacing;
-    this.ctx.fillText('📱 Touch and drag on mobile devices', centerX, yPos);
-    yPos += lineSpacing;
-    this.ctx.fillText('🔫 Auto-fire is enabled - just focus on moving!', centerX, yPos);
-    yPos += lineSpacing;
-    this.ctx.fillText('⭐ Collect power-ups to enhance your ship', centerX, yPos);
-    
-    // Dismiss instruction with pulsing effect
-    const pulseAlpha = 0.6 + 0.4 * Math.sin(Date.now() * 0.005);
-    this.ctx.fillStyle = `rgba(255, 255, 255, ${pulseAlpha})`;
-    this.ctx.font = `${isSmallScreen ? '14px' : '16px'} "Segoe UI", Arial, sans-serif`;
-    this.ctx.fillText('Click anywhere or press any key to start!', centerX, panelY + panelHeight - (isSmallScreen ? 25 : 30));
-    
-    this.ctx.restore();
-  }
 
   private renderGameOverOverlay(finalScore: number, gameOverTime: number) {
     this.ctx.save();

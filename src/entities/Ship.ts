@@ -42,7 +42,7 @@ export class Ship {
     this.image.src = this.config.ship.skins.default;
   }
 
-  public update(deltaTime: number, movementX: number, movementY: number, canvasWidth: number, canvasHeight: number, currentTime: number, projectileFactory?: (x: number, y: number) => Projectile): Projectile[] {
+  public update(deltaTime: number, movementX: number, movementY: number, canvasWidth: number, canvasHeight: number, currentTime: number, projectileFactory?: (x: number, y: number) => Projectile, touchTarget?: { x: number; y: number } | null): Projectile[] {
     // Update invincibility
     if (this.invincible && currentTime >= this.invincibilityEndTime) {
       this.invincible = false;
@@ -50,8 +50,38 @@ export class Ship {
 
     // Move based on input and speed
     const speed = this.config.ship.moveSpeed;
-    this.x += movementX * speed * deltaTime;
-    this.y += movementY * speed * deltaTime;
+    
+    // Use smooth fast following for touch input
+    if (touchTarget) {
+      // Clamp touch target to valid ship center positions
+      const halfWidth = this.width / 2;
+      const halfHeight = this.height / 2;
+      const clampedTarget = {
+        x: Math.max(halfWidth, Math.min(canvasWidth - halfWidth, touchTarget.x)),
+        y: Math.max(halfHeight, Math.min(canvasHeight - halfHeight, touchTarget.y))
+      };
+      
+      // Calculate direction to clamped touch target
+      const dx = clampedTarget.x - this.x;
+      const dy = clampedTarget.y - this.y;
+      const distance = Math.sqrt(dx * dx + dy * dy);
+      
+      // Use very high speed multiplier for fast following (5x normal speed)
+      const fastFollowSpeed = speed * 5.0;
+      
+      if (distance > 2) { // Only move if not already at target (avoid jitter)
+        // Normalize direction and apply fast speed
+        const normalizedX = dx / distance;
+        const normalizedY = dy / distance;
+        
+        this.x += normalizedX * fastFollowSpeed * deltaTime;
+        this.y += normalizedY * fastFollowSpeed * deltaTime;
+      }
+    } else {
+      // Use regular movement for keyboard/mouse input
+      this.x += movementX * speed * deltaTime;
+      this.y += movementY * speed * deltaTime;
+    }
 
     // Keep ship within bounds
     const halfWidth = this.width / 2;

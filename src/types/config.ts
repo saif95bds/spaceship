@@ -96,6 +96,10 @@ export interface DriftConfig {
   omegaRange: [number, number];
 }
 
+export interface MeteoroidMovementConfig {
+  angularFallDegrees: number;
+}
+
 export interface PowerUpConfig {
   spawnFrequencySeconds: number;
   speed: number;
@@ -149,6 +153,20 @@ export interface BackgroundConfig {
   };
 }
 
+export interface AdsConfig {
+  enabled: boolean;
+  spawnIntervalSeconds: number;
+  fallSpeed: number;
+  texts: string[];
+  style: {
+    fontSize: number;
+    color: string;
+    outlineColor: string;
+    outlineWidth: number;
+    alpha: number;
+  };
+}
+
 export interface LoggingConfig {
   console_log_enabled: boolean;
   debug_collision: boolean;
@@ -178,6 +196,9 @@ export interface DifficultyConfig {
   speedIncreaseIntervalSeconds: number;
   speedMultiplierPerIncrease: number;
   maxSpeedMultiplier: number;
+  hpIncreaseIntervalSeconds: number;
+  hpIncreaseAmount: number;
+  maxHpIncrease: number;
 }
 
 export interface GameConfig {
@@ -188,10 +209,12 @@ export interface GameConfig {
   ship: ShipConfig;
   projectile: ProjectileConfig;
   spawn: SpawnConfig;
+  meteoroidMovement: MeteoroidMovementConfig;
   meteoroids: MeteoroidConfig[];
   drift: DriftConfig;
   powerUps: PowerUpConfig;
   collision: CollisionConfig;
   assets: AssetsConfig;
   background: BackgroundConfig;
+  ads: AdsConfig;
 }
