@@ -51,7 +51,7 @@ export class Ship {
     // Move based on input and speed
     const speed = this.config.ship.moveSpeed;
     
-    // Use smooth fast following for touch input
+    // Use responsive touch movement for mobile
     if (touchTarget) {
       // Clamp touch target to valid ship center positions
       const halfWidth = this.width / 2;
@@ -66,16 +66,25 @@ export class Ship {
       const dy = clampedTarget.y - this.y;
       const distance = Math.sqrt(dx * dx + dy * dy);
       
-      // Use very high speed multiplier for fast following (5x normal speed)
-      const fastFollowSpeed = speed * 5.0;
+      // Use speed-based movement with smooth acceleration for mobile
+      const minDistance = 3; // Smaller dead zone for more responsiveness
       
-      if (distance > 2) { // Only move if not already at target (avoid jitter)
-        // Normalize direction and apply fast speed
+      if (distance > minDistance) {
+        // Normalize direction
         const normalizedX = dx / distance;
         const normalizedY = dy / distance;
         
-        this.x += normalizedX * fastFollowSpeed * deltaTime;
-        this.y += normalizedY * fastFollowSpeed * deltaTime;
+        // Use faster speed for mobile touch - 2.5x desktop speed for responsiveness
+        const touchSpeed = speed * 2.5;
+        
+        // Apply distance-based speed scaling
+        // Close targets: slower for precision, distant targets: full speed
+        const speedScale = Math.min(1, distance / 50); // Scale up to 50 pixels distance
+        const finalSpeed = touchSpeed * Math.max(0.3, speedScale); // Minimum 30% speed
+        
+        // Apply movement with frame-independent speed
+        this.x += normalizedX * finalSpeed * deltaTime;
+        this.y += normalizedY * finalSpeed * deltaTime;
       }
     } else {
       // Use regular movement for keyboard/mouse input

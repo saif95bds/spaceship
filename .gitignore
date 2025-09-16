@@ -3,6 +3,7 @@ node_modules/
 
 # Vite build output
 dist/
+spaceship.zip
 
 #gen AI inputs
 mvp.md

@@ -2,6 +2,20 @@ import { startGameLoop } from './core/loop';
 import { loadConfig } from './data/config';
 import { logger } from './utils/Logger';
 
+// Suppress development server WebSocket errors in production
+if (typeof window !== 'undefined' && !window.location.host.includes('localhost')) {
+  const originalError = console.error;
+  console.error = (...args) => {
+    const message = args.join(' ');
+    if (message.includes('WebSocket connection') || 
+        message.includes('Could not establish connection') ||
+        message.includes('message port closed')) {
+      return; // Suppress these development-related errors
+    }
+    originalError.apply(console, args);
+  };
+}
+
 // Load config first
 const config = loadConfig();
 logger.debug('Loaded config:', config);

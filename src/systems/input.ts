@@ -28,9 +28,12 @@ export class InputSystem {
     this.canvas.addEventListener('click', (e) => {
       this.mouseClicked = true;
       const rect = this.canvas.getBoundingClientRect();
+      const scaleX = this.canvas.width / rect.width;
+      const scaleY = this.canvas.height / rect.height;
+      
       this.mousePosition = {
-        x: e.clientX - rect.left,
-        y: e.clientY - rect.top
+        x: (e.clientX - rect.left) * scaleX,
+        y: (e.clientY - rect.top) * scaleY
       };
     });
   }
@@ -51,8 +54,17 @@ export class InputSystem {
     this.canvas.addEventListener('touchstart', (e) => {
       e.preventDefault();
       const touch = e.touches[0];
-      this.currentTouchPos = { x: touch.clientX, y: touch.clientY };
-      this.previousTouchPos = { x: touch.clientX, y: touch.clientY };
+      const rect = this.canvas.getBoundingClientRect();
+      
+      // Convert to canvas coordinates with proper scaling
+      const scaleX = this.canvas.width / rect.width;
+      const scaleY = this.canvas.height / rect.height;
+      
+      this.currentTouchPos = { 
+        x: (touch.clientX - rect.left) * scaleX, 
+        y: (touch.clientY - rect.top) * scaleY 
+      };
+      this.previousTouchPos = { ...this.currentTouchPos };
       this.touchMovementDelta = { x: 0, y: 0 };
       this.isPaused = false;
     });
@@ -61,11 +73,19 @@ export class InputSystem {
       e.preventDefault();
       if (this.currentTouchPos) {
         const touch = e.touches[0];
+        const rect = this.canvas.getBoundingClientRect();
+        
         // Store previous position
         this.previousTouchPos = { ...this.currentTouchPos };
-        // Update current position
-        this.currentTouchPos = { x: touch.clientX, y: touch.clientY };
-        // Calculate movement delta
+        // Update current position with proper canvas coordinates and scaling
+        const scaleX = this.canvas.width / rect.width;
+        const scaleY = this.canvas.height / rect.height;
+        
+        this.currentTouchPos = { 
+          x: (touch.clientX - rect.left) * scaleX, 
+          y: (touch.clientY - rect.top) * scaleY 
+        };
+        // Calculate movement delta (keep for any fallback systems)
         this.touchMovementDelta = {
           x: this.currentTouchPos.x - this.previousTouchPos.x,
           y: this.currentTouchPos.y - this.previousTouchPos.y
@@ -75,6 +95,20 @@ export class InputSystem {
 
     this.canvas.addEventListener('touchend', (e) => {
       e.preventDefault();
+      
+      // Handle touch end as a click for button interactions
+      if (this.currentTouchPos) {
+        const rect = this.canvas.getBoundingClientRect();
+        const scaleX = this.canvas.width / rect.width;
+        const scaleY = this.canvas.height / rect.height;
+        
+        this.mouseClicked = true;
+        this.mousePosition = {
+          x: this.currentTouchPos.x,
+          y: this.currentTouchPos.y
+        };
+      }
+      
       this.currentTouchPos = null;
       this.previousTouchPos = null;
       this.touchMovementDelta = { x: 0, y: 0 };
@@ -100,22 +134,17 @@ export class InputSystem {
       y += 1;
     }
 
-    // Touch input - provide absolute position for smooth fast following
+    // Touch input - provide absolute position for smooth following
     let touchTarget: { x: number; y: number } | null = null;
     if (this.currentTouchPos) {
-      const rect = this.canvas.getBoundingClientRect();
+      // Touch position is already in canvas coordinates
       touchTarget = {
-        x: this.currentTouchPos.x - rect.left,
-        y: this.currentTouchPos.y - rect.top
+        x: this.currentTouchPos.x,
+        y: this.currentTouchPos.y
       };
       
-      // Still provide movement delta as fallback (keep existing behavior for other systems)
-      const sensitivity = 0.1;
-      x = Math.max(-1, Math.min(1, this.touchMovementDelta.x * sensitivity));
-      y = Math.max(-1, Math.min(1, this.touchMovementDelta.y * sensitivity));
-      
-      // Reset delta after reading it
-      this.touchMovementDelta = { x: 0, y: 0 };
+      // Don't use delta-based movement for touch - it interferes with smooth following
+      // The ship will use touchTarget directly for position-based movement
     }
 
     // Normalize diagonal movement
