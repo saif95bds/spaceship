@@ -12,11 +12,26 @@ import { Projectile } from '../entities/Projectile';
 import { Meteoroid } from '../entities/Meteoroid';
 import { PowerUp, PowerUpType } from '../entities/PowerUp';
 import { GameConfig } from '../types/config';
+import { logger, configureLogging } from '../utils/Logger';
 
 const FIXED_STEP = 1000 / 60; // 60Hz in ms
 
 export function startGameLoop(canvas: HTMLCanvasElement, ctx: CanvasRenderingContext2D | null, config: GameConfig) {
   if (!ctx) return;
+
+  // Configure logging based on game config
+  configureLogging({
+    enabled: config.logging.console_log_enabled,
+    categories: {
+      debug: config.logging.console_log_enabled,
+      collision: config.logging.debug_collision,
+      particles: config.logging.debug_particles,
+      assets: config.logging.debug_assets,
+      performance: config.logging.debug_performance,
+      warning: config.logging.show_warnings,
+      error: config.logging.show_errors
+    }
+  });
 
   let lastUpdate = performance.now();
   let accumulator = 0;
@@ -45,8 +60,8 @@ export function startGameLoop(canvas: HTMLCanvasElement, ctx: CanvasRenderingCon
   const meteoroidSpawnRate = config.spawn.basePerSecond; // meteoroids per second
   const powerUpSpawnIntervalMs = config.powerUps.spawnFrequencySeconds * 1000;
   
-  console.log(`[DEBUG] Game initialized - Power-up spawn interval: ${powerUpSpawnIntervalMs}ms (${config.powerUps.spawnFrequencySeconds}s)`);
-  console.log(`[DEBUG] Meteoroid spawn rate: ${meteoroidSpawnRate}/s`);
+  logger.debug(`Game initialized - Power-up spawn interval: ${powerUpSpawnIntervalMs}ms (${config.powerUps.spawnFrequencySeconds}s)`);
+  logger.debug(`Meteoroid spawn rate: ${meteoroidSpawnRate}/s`);
 
   // Handle canvas resize
   window.addEventListener('resize', () => {
@@ -65,7 +80,7 @@ export function startGameLoop(canvas: HTMLCanvasElement, ctx: CanvasRenderingCon
       if (input.movement.x !== 0 || input.movement.y !== 0 || 
           inputSystem.hasAnyKeyPressed() || inputSystem.consumeMouseClick()) {
         renderSystem.dismissTutorial();
-        console.log('[DEBUG] Tutorial dismissed by user input');
+        logger.debug('Tutorial dismissed by user input');
       }
       // Don't update game logic while tutorial is active
       return;
@@ -74,7 +89,7 @@ export function startGameLoop(canvas: HTMLCanvasElement, ctx: CanvasRenderingCon
     // Debug power-up timing every 5 seconds
     if (currentTime % 5000 < 100) {
       const timeSinceLastPowerUp = currentTime - lastPowerUpSpawnTime;
-      console.log(`[DEBUG] Current time: ${currentTime.toFixed(0)}ms, Time since last power-up: ${timeSinceLastPowerUp.toFixed(0)}ms, Spawn interval: ${powerUpSpawnIntervalMs}ms, Power-ups active: ${powerUps.length}`);
+      logger.debug(`Current time: ${currentTime.toFixed(0)}ms, Time since last power-up: ${timeSinceLastPowerUp.toFixed(0)}ms, Spawn interval: ${powerUpSpawnIntervalMs}ms, Power-ups active: ${powerUps.length}`);
     }
     
     if (!input.isPaused) {
@@ -84,7 +99,7 @@ export function startGameLoop(canvas: HTMLCanvasElement, ctx: CanvasRenderingCon
       if (newProjectiles.length > 0) {
         projectiles.push(...newProjectiles);
         if (newProjectiles.length > 1) {
-          console.log(`[DEBUG] Fired ${newProjectiles.length} projectiles (multi-barrel)`);
+          logger.debug(`Fired ${newProjectiles.length} projectiles (multi-barrel)`);
         }
       }
 
@@ -96,13 +111,13 @@ export function startGameLoop(canvas: HTMLCanvasElement, ctx: CanvasRenderingCon
 
       // Spawn power-ups occasionally
       if (currentTime - lastPowerUpSpawnTime > powerUpSpawnIntervalMs) {
-        console.log(`[DEBUG] Spawning power-up at time ${currentTime}, interval: ${powerUpSpawnIntervalMs}ms, last spawn: ${lastPowerUpSpawnTime}`);
+        logger.debug(`Spawning power-up at time ${currentTime}, interval: ${powerUpSpawnIntervalMs}ms, last spawn: ${lastPowerUpSpawnTime}`);
         try {
           spawnPowerUp();
-          console.log(`[DEBUG] Power-up spawned successfully. Total power-ups: ${powerUps.length}`);
+          logger.debug(`Power-up spawned successfully. Total power-ups: ${powerUps.length}`);
           lastPowerUpSpawnTime = currentTime;
         } catch (error) {
-          console.error('[ERROR] Failed to spawn power-up:', error);
+          logger.error('Failed to spawn power-up:', error);
         }
       }
 
@@ -137,11 +152,11 @@ export function startGameLoop(canvas: HTMLCanvasElement, ctx: CanvasRenderingCon
           
           // Remove power-ups that are off-screen
           if (powerUp.isOffScreen(canvas.height)) {
-            console.log(`[DEBUG] Removing off-screen power-up: ${powerUp.type} at y=${powerUp.y.toFixed(1)}`);
+            logger.debug(`Removing off-screen power-up: ${powerUp.type} at y=${powerUp.y.toFixed(1)}`);
             powerUps.splice(i, 1);
           }
         } catch (error) {
-          console.error(`[ERROR] Failed to update power-up at index ${i}:`, error);
+          logger.error(`Failed to update power-up at index ${i}:`, error);
           // Remove problematic power-up to prevent hanging
           powerUps.splice(i, 1);
         }
@@ -151,7 +166,7 @@ export function startGameLoop(canvas: HTMLCanvasElement, ctx: CanvasRenderingCon
       if (scoreMultiplierEndTime > 0 && currentTime >= scoreMultiplierEndTime) {
         scoreMultiplier = 1;
         scoreMultiplierEndTime = 0;
-        console.log('Score multiplier expired');
+        logger.debug('Score multiplier expired');
       }
 
       // Handle collisions
@@ -210,7 +225,7 @@ export function startGameLoop(canvas: HTMLCanvasElement, ctx: CanvasRenderingCon
     const meteoroid = new Meteoroid(x, y, size, meteoroidConfig);
     
     // Debug logging to verify type weighting and safety margin
-    console.log(`Spawned ${meteoroidConfig.id} meteoroid (${size}) at (${x.toFixed(1)}, ${y}) - Ship at (${ship.x.toFixed(1)}, ${ship.y.toFixed(1)}) - Distance: ${Math.abs(x - ship.x).toFixed(1)}px`);
+    logger.debug(`Spawned ${meteoroidConfig.id} meteoroid (${size}) at (${x.toFixed(1)}, ${y}) - Ship at (${ship.x.toFixed(1)}, ${ship.y.toFixed(1)}) - Distance: ${Math.abs(x - ship.x).toFixed(1)}px`);
     
     meteoroids.push(meteoroid);
   }
@@ -224,12 +239,12 @@ export function startGameLoop(canvas: HTMLCanvasElement, ctx: CanvasRenderingCon
     const x = Math.random() * canvas.width;
     const y = -50;
     
-    console.log(`[DEBUG] Canvas dimensions: ${canvas.width}x${canvas.height}, spawning at (${x.toFixed(1)}, ${y})`);
+    logger.debug(`Canvas dimensions: ${canvas.width}x${canvas.height}, spawning at (${x.toFixed(1)}, ${y})`);
     
     const powerUp = new PowerUp(x, y, randomType, config);
     powerUps.push(powerUp);
     
-    console.log(`Spawned ${randomType} power-up at (${x.toFixed(1)}, ${y}). Total power-ups: ${powerUps.length}`);
+    logger.debug(`Spawned ${randomType} power-up at (${x.toFixed(1)}, ${y}). Total power-ups: ${powerUps.length}`);
   }
 
   function handleCollisions(currentTime: number) {
@@ -247,22 +262,26 @@ export function startGameLoop(canvas: HTMLCanvasElement, ctx: CanvasRenderingCon
       const nearestPowerUp = powerUps[0];
       const distance = Math.sqrt((ship.x - nearestPowerUp.x) ** 2 + (ship.y - nearestPowerUp.y) ** 2);
       const requiredDistance = ship.getCollisionRadius() + nearestPowerUp.getRadius();
-      console.log(`[DEBUG] Ship at (${ship.x.toFixed(1)}, ${ship.y.toFixed(1)}), PowerUp at (${nearestPowerUp.x.toFixed(1)}, ${nearestPowerUp.y.toFixed(1)})`);
+      logger.debug(`Ship at (${ship.x.toFixed(1)}, ${ship.y.toFixed(1)}), PowerUp at (${nearestPowerUp.x.toFixed(1)}, ${nearestPowerUp.y.toFixed(1)})`);
     }
     
-    // Process projectile collisions with safety checks
-    for (let i = projectileCollisions.length - 1; i >= 0; i--) {
+    // Sort collisions by meteoroid index in descending order to prevent index shifting issues
+    projectileCollisions.sort((a, b) => b.meteoroidIndex - a.meteoroidIndex);
+    
+    let processedCollisions = 0;
+    // Process projectile collisions with safety checks  
+    for (let i = 0; i < projectileCollisions.length; i++) {
       const collision = projectileCollisions[i];
       const meteoroidIndex = collision.meteoroidIndex;
       const projectileIndex = collision.projectileIndex!;
       
       // Safety checks to prevent crashes
       if (meteoroidIndex >= meteoroids.length || meteoroidIndex < 0) {
-        console.warn(`[WARNING] Invalid meteoroid index: ${meteoroidIndex}, array length: ${meteoroids.length}`);
+        logger.warn(`Invalid meteoroid index: ${meteoroidIndex}, array length: ${meteoroids.length} (after sort)`);
         continue;
       }
       if (projectileIndex >= projectiles.length || projectileIndex < 0) {
-        console.warn(`[WARNING] Invalid projectile index: ${projectileIndex}, array length: ${projectiles.length}`);
+        logger.warn(`Invalid projectile index: ${projectileIndex}, array length: ${projectiles.length}`);
         continue;
       }
       
@@ -270,7 +289,7 @@ export function startGameLoop(canvas: HTMLCanvasElement, ctx: CanvasRenderingCon
       const projectile = projectiles[projectileIndex];
       
       if (!meteoroid || !projectile) {
-        console.warn(`[WARNING] Missing entities - Meteoroid: ${!!meteoroid}, Projectile: ${!!projectile}`);
+        logger.warn(`Missing entities - Meteoroid: ${!!meteoroid}, Projectile: ${!!projectile}`);
         continue;
       }
       
@@ -284,8 +303,10 @@ export function startGameLoop(canvas: HTMLCanvasElement, ctx: CanvasRenderingCon
         // Create additional damage burst effect for all hits (destroyed or not)
         particleSystem.createDamageBurst(meteoroid.x, meteoroid.y, meteoroid.size, isDestroyed);
         
-        // Debug logging
-        console.log(`[DEBUG] ${meteoroid.meteoroidType} collision at (${projectile.x.toFixed(1)}, ${projectile.y.toFixed(1)}) - Size: ${meteoroid.size} - Destroyed: ${isDestroyed} - Particles: ${particleSystem.getParticleCount()}`);
+        processedCollisions++;
+        
+        // Debug logging (reduced frequency)
+        logger.debugRandom(0.1, `${meteoroid.meteoroidType} collision - Size: ${meteoroid.size} - Destroyed: ${isDestroyed}`);
         
         // Add light screen shake for all hits (more for destruction)
         if (!isDestroyed) {
@@ -331,14 +352,19 @@ export function startGameLoop(canvas: HTMLCanvasElement, ctx: CanvasRenderingCon
           const sizeMultiplier = meteoroid.sizeType === 'L' ? 3 : meteoroid.sizeType === 'M' ? 2 : 1;
           const points = baseScore * sizeMultiplier * scoreMultiplier;
           score += points;
-          console.log(`+${points} points! Total: ${score} (${scoreMultiplier}x multiplier)`);
+          logger.debug(`+${points} points! Total: ${score} (${scoreMultiplier}x multiplier)`);
           
           // Get meteoroid config for splitting
           const meteoroidConfig = meteoroid.getConfig();
         }
       } catch (error) {
-        console.error(`[ERROR] Failed to process projectile-meteoroid collision:`, error);
+        logger.error(`Failed to process projectile-meteoroid collision:`, error);
       }
+    }
+    
+    // Log collision processing summary (only when there were collisions)
+    if (projectileCollisions.length > 0) {
+      logger.collision(`Processed ${processedCollisions}/${projectileCollisions.length} projectile collisions`);
     }
 
     // Check ship-meteoroid collisions (only if ship can take damage)
@@ -364,7 +390,7 @@ export function startGameLoop(canvas: HTMLCanvasElement, ctx: CanvasRenderingCon
         meteoroids.splice(meteoroidIndex, 1);
         
         if (gameOver) {
-          console.log("Game Over! Ship destroyed.");
+          logger.debug("Game Over! Ship destroyed.");
           // TODO: Handle game over state
         }
         
@@ -374,26 +400,26 @@ export function startGameLoop(canvas: HTMLCanvasElement, ctx: CanvasRenderingCon
 
     // Process power-up collisions
     if (powerUpCollisions.length > 0) {
-      console.log(`[DEBUG] *** POWER-UP COLLISION DETECTED! Processing ${powerUpCollisions.length} collision(s) ***`);
+      logger.debug(`*** POWER-UP COLLISION DETECTED! Processing ${powerUpCollisions.length} collision(s) ***`);
     }
     for (let i = powerUpCollisions.length - 1; i >= 0; i--) {
       const collision = powerUpCollisions[i];
       const powerUpIndex = collision.powerUpIndex;
       const powerUp = powerUps[powerUpIndex];
       
-      console.log(`[DEBUG] *** COLLECTING POWER-UP: ${powerUp.type} at index ${powerUpIndex} ***`);
+      logger.debug(`*** COLLECTING POWER-UP: ${powerUp.type} at index ${powerUpIndex} ***`);
       
       // Apply power-up effect
       applyPowerUpEffect(powerUp.type, currentTime);
       
       // Remove the power-up
       powerUps.splice(powerUpIndex, 1);
-      console.log(`[DEBUG] *** POWER-UP COLLECTED! Remaining power-ups: ${powerUps.length} ***`);
+      logger.debug(`*** POWER-UP COLLECTED! Remaining power-ups: ${powerUps.length} ***`);
     }
 
     // Process projectile-powerup collisions with safety checks
     if (projectilePowerUpCollisions.length > 0) {
-      console.log(`[DEBUG] *** PROJECTILE-POWER-UP COLLISION! Processing ${projectilePowerUpCollisions.length} collision(s) ***`);
+      logger.debug(`*** PROJECTILE-POWER-UP COLLISION! Processing ${projectilePowerUpCollisions.length} collision(s) ***`);
     }
     
     // Sort collisions by indices (highest first) to prevent index invalidation
@@ -411,11 +437,11 @@ export function startGameLoop(canvas: HTMLCanvasElement, ctx: CanvasRenderingCon
       
       // Safety checks to prevent crashes
       if (powerUpIndex >= powerUps.length || powerUpIndex < 0) {
-        console.warn(`[WARNING] Invalid powerUp index: ${powerUpIndex}, array length: ${powerUps.length}`);
+        logger.warn(`Invalid powerUp index: ${powerUpIndex}, array length: ${powerUps.length}`);
         continue;
       }
       if (projectileIndex >= projectiles.length || projectileIndex < 0) {
-        console.warn(`[WARNING] Invalid projectile index: ${projectileIndex}, array length: ${projectiles.length}`);
+        logger.warn(`Invalid projectile index: ${projectileIndex}, array length: ${projectiles.length}`);
         continue;
       }
       
@@ -423,11 +449,11 @@ export function startGameLoop(canvas: HTMLCanvasElement, ctx: CanvasRenderingCon
       const projectile = projectiles[projectileIndex];
       
       if (!powerUp || !projectile) {
-        console.warn(`[WARNING] Missing entities - PowerUp: ${!!powerUp}, Projectile: ${!!projectile}`);
+        logger.warn(`Missing entities - PowerUp: ${!!powerUp}, Projectile: ${!!projectile}`);
         continue;
       }
       
-      console.log(`[DEBUG] *** SHOOTING POWER-UP: ${powerUp.type} at index ${powerUpIndex} ***`);
+      logger.debug(`*** SHOOTING POWER-UP: ${powerUp.type} at index ${powerUpIndex} ***`);
       
       try {
         // Apply power-up effect
@@ -444,9 +470,9 @@ export function startGameLoop(canvas: HTMLCanvasElement, ctx: CanvasRenderingCon
           powerUps.splice(powerUpIndex, 1);
         }
         
-        console.log(`[DEBUG] *** POWER-UP SHOT! Remaining power-ups: ${powerUps.length}, projectiles: ${projectiles.length} ***`);
+        logger.debug(`*** POWER-UP SHOT! Remaining power-ups: ${powerUps.length}, projectiles: ${projectiles.length} ***`);
       } catch (error) {
-        console.error(`[ERROR] Failed to process projectile-powerup collision:`, error);
+        logger.error(`Failed to process projectile-powerup collision:`, error);
       }
     }
   }
@@ -456,9 +482,9 @@ export function startGameLoop(canvas: HTMLCanvasElement, ctx: CanvasRenderingCon
       case '+1life':
         if (ship.lives < config.ship.lives.max) {
           ship.lives++;
-          console.log(`+1 Life! Lives: ${ship.lives}/${config.ship.lives.max}`);
+          logger.debug(`+1 Life! Lives: ${ship.lives}/${config.ship.lives.max}`);
         } else {
-          console.log(`Already at max lives (${config.ship.lives.max})`);
+          logger.debug(`Already at max lives (${config.ship.lives.max})`);
         }
         break;
         
@@ -469,19 +495,19 @@ export function startGameLoop(canvas: HTMLCanvasElement, ctx: CanvasRenderingCon
           const levelConfig = config.powerUps.rapidFire.levels[rapidFireLevel.toString() as keyof typeof config.powerUps.rapidFire.levels];
           ship.setFireRate(levelConfig.fireRate);
           ship.setBarrels(levelConfig.barrels);
-          console.log(`Rapid Fire Level ${rapidFireLevel}! Fire rate: ${levelConfig.fireRate}, Barrels: ${levelConfig.barrels}`);
+          logger.debug(`Rapid Fire Level ${rapidFireLevel}! Fire rate: ${levelConfig.fireRate}, Barrels: ${levelConfig.barrels}`);
           
           // Update ship skin based on rapid fire level
           ship.updateSkin(rapidFireLevel);
         } else {
-          console.log(`Already at max rapid fire level (${config.powerUps.rapidFire.maxLevel})`);
+          logger.debug(`Already at max rapid fire level (${config.powerUps.rapidFire.maxLevel})`);
         }
         break;
         
       case 'scoreMultiplier':
         scoreMultiplier = config.powerUps.scoreMultiplier.mult;
         scoreMultiplierEndTime = currentTime + config.powerUps.scoreMultiplier.durationMs;
-        console.log(`Score Multiplier ${scoreMultiplier}x for ${config.powerUps.scoreMultiplier.durationMs / 1000}s!`);
+        logger.debug(`Score Multiplier ${scoreMultiplier}x for ${config.powerUps.scoreMultiplier.durationMs / 1000}s!`);
         break;
     }
   }
@@ -527,7 +553,7 @@ export function startGameLoop(canvas: HTMLCanvasElement, ctx: CanvasRenderingCon
       
       // Prevent infinite loops by limiting accumulator
       if (accumulator > 1000) {
-        console.warn('[WARNING] Accumulator exceeded 1000ms, resetting to prevent hanging');
+        logger.performance('Accumulator exceeded 1000ms, resetting to prevent hanging');
         accumulator = FIXED_STEP;
       }
       
@@ -539,19 +565,19 @@ export function startGameLoop(canvas: HTMLCanvasElement, ctx: CanvasRenderingCon
       }
       
       if (updateCount >= 10) {
-        console.warn('[WARNING] Update loop ran 10 times, potential performance issue');
+        logger.performance('Update loop ran 10 times, potential performance issue');
       }
       
       render(deltaTime, now);
       requestAnimationFrame(loop);
     } catch (error) {
-      console.error('[CRITICAL ERROR] Game loop crashed:', error);
+      logger.error('Game loop crashed:', error);
       if (error instanceof Error) {
-        console.error('Stack trace:', error.stack);
+        logger.error('Stack trace:', error.stack);
       }
       // Try to restart the loop after a delay
       setTimeout(() => {
-        console.log('[RECOVERY] Attempting to restart game loop...');
+        logger.debug('Attempting to restart game loop...');
         requestAnimationFrame(loop);
       }, 1000);
     }

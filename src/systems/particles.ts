@@ -10,6 +10,7 @@ export interface Particle {
 }
 
 import { ParticlePool } from './ParticlePool.js';
+import { logger } from '../utils/Logger';
 
 export class ParticleSystem {
   private particles: Particle[] = [];
@@ -21,7 +22,7 @@ export class ParticleSystem {
 
   // Create impact particles when projectile hits meteoroid
   createImpactEffect(x: number, y: number, count: number = 16) {
-    console.log(`[DEBUG] Impact effect: ${count} particles`);
+    logger.particles(`Impact effect: ${count} particles`);
     for (let i = 0; i < count; i++) {
       const angle = (Math.PI * 2 * i) / count + (Math.random() - 0.5) * 0.5;
       const speed = 50 + Math.random() * 100; // Slower so they're more visible
@@ -93,7 +94,7 @@ export class ParticleSystem {
     const count = Math.floor((meteoroidSize / 6) * intensity); // Scale with size and destruction
     const baseCount = Math.max(8, count); // Minimum 8 particles
     
-    console.log(`[DEBUG] Damage burst: ${baseCount} particles - Size: ${meteoroidSize}, Destroyed: ${isDestroyed}`);
+    logger.particles(`Damage burst: ${baseCount} particles - Size: ${meteoroidSize}, Destroyed: ${isDestroyed}`);
     
     // Create colorful burst particles like the reference image
     for (let i = 0; i < baseCount; i++) {
@@ -193,8 +194,8 @@ export class ParticleSystem {
     }
     
     // Debug: Log particle count occasionally
-    if (this.particles.length > 0 && Math.random() < 0.01) { // 1% chance to log
-      console.log(`[DEBUG] Rendering ${this.particles.length} particles`);
+    if (this.particles.length > 0) {
+      logger.debugRandom(0.01, `Rendering ${this.particles.length} particles`);
     }
   }
 

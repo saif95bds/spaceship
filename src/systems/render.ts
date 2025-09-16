@@ -5,6 +5,7 @@ import { Meteoroid } from '../entities/Meteoroid';
 import { PowerUp } from '../entities/PowerUp';
 import { ParticleSystem } from './particles';
 import { DebugSystem } from './DebugSystem';
+import { logger } from '../utils/Logger';
 
 interface Star {
   x: number;
@@ -41,26 +42,26 @@ export class RenderSystem {
 
   private loadBackgroundImage() {
     if (this.config.background.image) {
-      console.log(`[RenderSystem] Loading background image: ${this.config.background.image}`);
+      logger.assets(`Loading background image: ${this.config.background.image}`);
       
       this.backgroundImage = new Image();
       
       this.backgroundImage.onload = () => {
-        console.log(`[RenderSystem] ✅ Background image loaded successfully: ${this.config.background.image}`);
+        logger.assets(`✅ Background image loaded successfully: ${this.config.background.image}`);
         this.backgroundImageLoaded = true;
         this.backgroundImageFailed = false;
       };
       
       this.backgroundImage.onerror = () => {
-        console.warn(`[RenderSystem] ❌ Failed to load background image: ${this.config.background.image}`);
-        console.warn(`[RenderSystem] 🔄 Falling back to procedural starfield`);
+        logger.warn(`❌ Failed to load background image: ${this.config.background.image}`);
+        logger.warn(`🔄 Falling back to procedural starfield`);
         this.backgroundImageLoaded = false;
         this.backgroundImageFailed = true;
       };
       
       this.backgroundImage.src = this.config.background.image;
     } else {
-      console.log(`[RenderSystem] No background image configured, using fallback: ${this.config.background.fallback.type}`);
+      logger.assets(`No background image configured, using fallback: ${this.config.background.fallback.type}`);
     }
   }
 
@@ -197,7 +198,7 @@ export class RenderSystem {
 
     // Render power-ups
     if (powerUps.length > 0 && Math.random() < 0.1) { // Reduce debug spam
-      console.log(`[DEBUG] Rendering ${powerUps.length} power-up(s)`);
+      logger.debug(`Rendering ${powerUps.length} power-up(s)`);
     }
     for (const powerUp of powerUps) {
       powerUp.render(this.ctx);

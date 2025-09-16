@@ -149,6 +149,16 @@ export interface BackgroundConfig {
   };
 }
 
+export interface LoggingConfig {
+  console_log_enabled: boolean;
+  debug_collision: boolean;
+  debug_particles: boolean;
+  debug_assets: boolean;
+  debug_performance: boolean;
+  show_warnings: boolean;
+  show_errors: boolean;
+}
+
 export interface CanvasConfig {
   maxWidth: number;
   maxHeight: number;
@@ -156,6 +166,7 @@ export interface CanvasConfig {
 }
 
 export interface GameConfig {
+  logging: LoggingConfig;
   canvas: CanvasConfig;
   ship: ShipConfig;
   projectile: ProjectileConfig;

@@ -38,12 +38,21 @@ export class Meteoroid {
     this.image = new Image();
     this.image.onload = () => {
       this.imageLoaded = true;
-      console.log(`[Meteoroid] ✅ Successfully loaded ${this.meteoroidType} sprite: ${config.images[sizeType]}`);
+      // Import logger dynamically to avoid circular dependencies
+      import('../utils/Logger').then(({ logger }) => {
+        logger.assets(`✅ Successfully loaded ${this.meteoroidType} sprite: ${config.images[sizeType]}`);
+      });
     };
     this.image.onerror = () => {
-      console.warn(`[Meteoroid] ❌ Failed to load meteoroid sprite: ${config.images[sizeType]}`);
+      // Import logger dynamically to avoid circular dependencies
+      import('../utils/Logger').then(({ logger }) => {
+        logger.warn(`❌ Failed to load meteoroid sprite: ${config.images[sizeType]}`);
+      });
     };
-    console.log(`[Meteoroid] 🔄 Loading ${this.meteoroidType} sprite: ${config.images[sizeType]}`);
+    // Import logger dynamically to avoid circular dependencies
+    import('../utils/Logger').then(({ logger }) => {
+      logger.assets(`🔄 Loading ${this.meteoroidType} sprite: ${config.images[sizeType]}`);
+    });
     this.image.src = config.images[sizeType];
   }
 

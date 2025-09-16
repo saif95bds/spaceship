@@ -1,6 +1,15 @@
 {
+  "logging": {
+    "console_log_enabled": false,
+    "debug_collision": false,
+    "debug_particles": false,
+    "debug_assets": false,
+    "debug_performance": false,
+    "show_warnings": true,
+    "show_errors": true
+  },
   "canvas": {
-    "maxWidth": 800,
+    "maxWidth": 700,
     "maxHeight": 1000,
     "aspectRatio": "4:5"
   },

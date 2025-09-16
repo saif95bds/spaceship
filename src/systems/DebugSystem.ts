@@ -1,3 +1,5 @@
+import { logger } from '../utils/Logger';
+
 interface DebugConfig {
   showCollisionRings: boolean;
   showFPS: boolean;
@@ -56,22 +58,22 @@ export class DebugSystem {
 
   public toggleCollisionRings(): void {
     this.config.showCollisionRings = !this.config.showCollisionRings;
-    console.log(`Debug: Collision rings ${this.config.showCollisionRings ? 'ON' : 'OFF'} (F1)`);
+    logger.debug(`Collision rings ${this.config.showCollisionRings ? 'ON' : 'OFF'} (F1)`);
   }
 
   public toggleFPS(): void {
     this.config.showFPS = !this.config.showFPS;
-    console.log(`Debug: FPS counter ${this.config.showFPS ? 'ON' : 'OFF'} (F2)`);
+    logger.debug(`FPS counter ${this.config.showFPS ? 'ON' : 'OFF'} (F2)`);
   }
 
   public toggleObjectPoolStats(): void {
     this.config.showObjectPoolStats = !this.config.showObjectPoolStats;
-    console.log(`Debug: Object pool stats ${this.config.showObjectPoolStats ? 'ON' : 'OFF'} (F3)`);
+    logger.debug(`Object pool stats ${this.config.showObjectPoolStats ? 'ON' : 'OFF'} (F3)`);
   }
 
   public toggleReduceMotion(): void {
     this.config.reduceMotion = !this.config.reduceMotion;
-    console.log(`Debug: Reduce motion ${this.config.reduceMotion ? 'ON' : 'OFF'} (F4)`);
+    logger.debug(`Reduce motion ${this.config.reduceMotion ? 'ON' : 'OFF'} (F4)`);
   }
 
   public shouldShowCollisionRings(): boolean {
