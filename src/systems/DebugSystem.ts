@@ -73,7 +73,7 @@ export class DebugSystem {
 
   public toggleReduceMotion(): void {
     this.config.reduceMotion = !this.config.reduceMotion;
-    logger.debug(`Reduce motion ${this.config.reduceMotion ? 'ON' : 'OFF'} (F4)`);
+        logger.debug(`Reduce motion ${this.config.reduceMotion ? 'ON' : 'OFF'} (F4)`);
   }
 
   public shouldShowCollisionRings(): boolean {

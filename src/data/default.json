@@ -19,12 +19,12 @@
     "moveSpeed": 480,
     "lives": { "start": 3, "max": 5 },
     "skins": {
-      "default": "/assets/ships/base.png",
+      "default": "assets/ships/base.png",
       "rapidFire": {
-        "1": "/assets/ships/base_rf1.png",
-        "2": "/assets/ships/base_rf2.png",
-        "3": "/assets/ships/base_rf3.png",
-        "4": "/assets/ships/base_rf4.png"
+        "1": "assets/ships/base_rf1.png",
+        "2": "assets/ships/base_rf2.png",
+        "3": "assets/ships/base_rf3.png",
+        "4": "assets/ships/base_rf4.png"
       }
     },
     "collision": {
@@ -50,7 +50,7 @@
   "projectile": {
     "speed": 900,
     "fireRate": 6.0,
-    "sprite": "/assets/projectiles/basic.svg",
+    "sprite": "assets/projectiles/bullet.png",
     "impactFx": { "enabled": true, "particles": true, "flash": true, "durationMs": 150 }
   },
   "spawn": {
@@ -62,7 +62,7 @@
   "meteoroids": [
     {
       "id": "basalt",
-      "images": { "L": "/assets/rocks/basalt_l.png", "M": "/assets/rocks/basalt_m.png", "S": "/assets/rocks/basalt_s.png" },
+      "images": { "L": "assets/rocks/basalt_l.png", "M": "assets/rocks/basalt_m.png", "S": "assets/rocks/basalt_s.png" },
       "hp": { "L": 3, "M": 2, "S": 1 },
       "split": { "L": [2, "M"], "M": [2, "S"], "S": null },
       "speed": { "min": 1, "max": 3 },
@@ -72,7 +72,7 @@
     },
     {
       "id": "ice",
-      "images": { "L": "/assets/rocks/ice_l.png", "M": "/assets/rocks/ice_m.png", "S": "/assets/rocks/ice_s.png" },
+      "images": { "L": "assets/rocks/ice_l.png", "M": "assets/rocks/ice_m.png", "S": "assets/rocks/ice_s.png" },
       "hp": { "L": 2, "M": 1, "S": 1 },
       "split": { "L": [3, "M"], "M": [2, "S"], "S": null },
       "speed": { "min": 2, "max": 4 },
@@ -82,7 +82,7 @@
     },
     {
       "id": "metal",
-      "images": { "L": "/assets/rocks/metal_l.png", "M": "/assets/rocks/metal_m.png", "S": "/assets/rocks/metal_s.png" },
+      "images": { "L": "assets/rocks/metal_l.png", "M": "assets/rocks/metal_m.png", "S": "assets/rocks/metal_s.png" },
       "hp": { "L": 4, "M": 3, "S": 2 },
       "split": { "L": [2, "M"], "M": [2, "S"], "S": null },
       "speed": { "min": 1, "max": 2 },
@@ -92,7 +92,7 @@
     },
     {
       "id": "fireball",
-      "images": { "L": "/assets/rocks/fireball_l.png", "M": "/assets/rocks/fireball_m.png", "S": "/assets/rocks/fireball_s.png" },
+      "images": { "L": "assets/rocks/fireball_l.png", "M": "assets/rocks/fireball_m.png", "S": "assets/rocks/fireball_s.png" },
       "hp": { "L": 2, "M": 1, "S": 1 },
       "split": { "L": [2, "M"], "M": [2, "S"], "S": null },
       "speed": { "min": 3, "max": 5 },
@@ -109,7 +109,7 @@
     "+1life": { "enabled": true },
     "rapidFire": {
       "maxLevel": 4,
-      "skins": { "1": "/assets/ships/base_rf1.png", "2": "/assets/ships/base_rf2.png", "3": "/assets/ships/base_rf3.png", "4": "/assets/ships/base_rf4.png" },
+      "skins": { "1": "assets/ships/base_rf1.png", "2": "assets/ships/base_rf2.png", "3": "assets/ships/base_rf3.png", "4": "assets/ships/base_rf4.png" },
       "levels": {
         "1": { "fireRate": 6.0, "barrels": 2 },
         "2": { "fireRate": 8.0, "barrels": 4 },
@@ -137,5 +137,5 @@
     "maxSpriteSizePx": 256,
     "policy": "If a loaded image exceeds maxSpriteSizePx or its category target (e.g., ship.spriteTargetPx), scale it down at load time while preserving aspect ratio."
   },
-  "background": { "image": "/assets/backgrounds/nebula.png", "fallback": { "type": "starfield", "density": 0.002 } }
+  "background": { "image": "assets/backgrounds/nebula.png", "fallback": { "type": "starfield", "density": 0.002 } }
 }

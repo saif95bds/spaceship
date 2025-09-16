@@ -1,10 +1,11 @@
 import { GameConfig } from '../types/config';
+import { logger } from '../utils/Logger';
 
 export class Projectile {
   public x: number;
   public y: number;
-  public width: number = 8;
-  public height: number = 16;
+  public width: number = 32;
+  public height: number = 64;
   public speed: number;
   public alive: boolean = true;
   private image: HTMLImageElement | null = null;
@@ -35,7 +36,7 @@ export class Projectile {
       this.imageLoaded = true;
     };
     this.image.onerror = () => {
-      console.warn('Failed to load projectile image, using fallback');
+      logger.assets('Failed to load projectile image, using fallback');
       this.imageLoaded = false;
     };
     this.image.src = this.config.projectile.sprite;

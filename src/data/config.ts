@@ -1,5 +1,6 @@
 import { GameConfig } from '../types/config';
 import defaultConfigJson from './default.json';
+import { logger } from '../utils/Logger';
 
 function validateConfig(config: GameConfig): GameConfig {
   // Validate lives
@@ -46,7 +47,7 @@ export function loadConfig(): GameConfig {
     const config = defaultConfigJson as unknown as GameConfig;
     return validateConfig(config);
   } catch (error) {
-    console.error('Config validation failed:', error);
+    logger.error('Config validation failed:', error);
     throw error;
   }
 }

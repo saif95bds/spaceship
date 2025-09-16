@@ -1,5 +1,6 @@
 import { GameConfig } from '../types/config';
 import { Projectile } from './Projectile';
+import { logger } from '../utils/Logger';
 
 export class Ship {
   public x: number;
@@ -35,7 +36,7 @@ export class Ship {
       this.height = this.config.ship.spriteTargetPx;
     };
     this.image.onerror = () => {
-      console.warn('Failed to load ship image, using fallback');
+      logger.assets('Failed to load ship image, using fallback');
       this.imageLoaded = false;
     };
     this.image.src = this.config.ship.skins.default;
@@ -132,14 +133,14 @@ export class Ship {
 
   public setBarrels(barrels: number) {
     this.barrels = barrels;
-    console.log(`[DEBUG] Ship barrels set to: ${this.barrels}`);
+    logger.debug(`Ship barrels set to: ${this.barrels}`);
   }
 
   public resetToDefault() {
     this.barrels = 1;
     this.fireInterval = 1000 / this.config.projectile.fireRate;
     this.updateSkin(0);
-    console.log(`[DEBUG] Ship reset to default configuration`);
+    logger.debug(`Ship reset to default configuration`);
   }
 
   public updateSkin(rapidFireLevel: number) {
@@ -147,14 +148,14 @@ export class Ship {
     
     if (rapidFireLevel === 0) {
       this.image.src = this.config.ship.skins.default;
-      console.log(`[DEBUG] Ship skin: default`);
+      logger.debug(`Ship skin: default`);
     } else {
       const skinKey = rapidFireLevel.toString() as keyof typeof this.config.ship.skins.rapidFire;
       if (this.config.ship.skins.rapidFire[skinKey]) {
         this.image.src = this.config.ship.skins.rapidFire[skinKey];
-        console.log(`[DEBUG] Ship skin: rapidFire level ${rapidFireLevel} - ${this.image.src}`);
+        logger.debug(`Ship skin: rapidFire level ${rapidFireLevel} - ${this.image.src}`);
       } else {
-        console.warn(`[WARNING] No skin available for rapidFire level ${rapidFireLevel}`);
+        logger.warn(`No skin available for rapidFire level ${rapidFireLevel}`);
       }
     }
   }

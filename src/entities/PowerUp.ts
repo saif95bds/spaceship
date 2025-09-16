@@ -1,4 +1,5 @@
 import { GameConfig } from '../types/config';
+import { logger } from '../utils/Logger';
 
 export type PowerUpType = '+1life' | 'rapidFire' | 'scoreMultiplier';
 
@@ -14,7 +15,7 @@ export class PowerUp {
   private config: GameConfig;
 
   constructor(x: number, y: number, type: PowerUpType, config: GameConfig) {
-    console.log(`[DEBUG] Creating PowerUp: type=${type}, position=(${x.toFixed(1)}, ${y.toFixed(1)})`);
+    logger.debug(`Creating PowerUp: type=${type}, position=(${x.toFixed(1)}, ${y.toFixed(1)})`);
     this.x = x;
     this.y = y;
     this.type = type;
@@ -32,16 +33,16 @@ export class PowerUp {
     };
 
     const imagePath = imageMap[this.type];
-    console.log(`[DEBUG] Loading power-up image: ${imagePath} for type ${this.type}`);
+    logger.assets(`Loading power-up image: ${imagePath} for type ${this.type}`);
     
     this.image = new Image();
     this.image.onload = () => {
       this.imageLoaded = true;
-      console.log(`[DEBUG] ✅ Power-up image loaded successfully: ${imagePath}`);
+      logger.assets(`✅ Power-up image loaded successfully: ${imagePath}`);
     };
     
     this.image.onerror = () => {
-      console.warn(`[DEBUG] ❌ Failed to load power-up image: ${imagePath}, using fallback`);
+      logger.assets(`❌ Failed to load power-up image: ${imagePath}, using fallback`);
       this.imageLoaded = false;
     };
     
@@ -53,7 +54,7 @@ export class PowerUp {
     const movement = this.speed * (deltaTime / 16);
     this.y += movement;
     if (Math.random() < 0.01) { // Log occasionally to avoid spam
-      console.log(`[DEBUG] PowerUp ${this.type} update: y=${this.y.toFixed(1)}, movement=${movement.toFixed(2)}`);
+      logger.debug(`PowerUp ${this.type} update: y=${this.y.toFixed(1)}, movement=${movement.toFixed(2)}`);
     }
   }
 
@@ -114,7 +115,7 @@ export class PowerUp {
     } else {
       // Fallback: draw colored circle with text
       if (Math.random() < 0.05) { // Occasional debug logging
-        console.log(`[DEBUG] Fallback render: ${this.type} at (${this.x.toFixed(1)}, ${this.y.toFixed(1)}), radius: ${this.getRadius()}`);
+        logger.debug(`Fallback render: ${this.type} at (${this.x.toFixed(1)}, ${this.y.toFixed(1)}), radius: ${this.getRadius()}`);
       }
       ctx.save();
       
