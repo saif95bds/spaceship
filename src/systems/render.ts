@@ -22,6 +22,8 @@ export class RenderSystem {
   private backgroundImage: HTMLImageElement | null = null;
   private backgroundImageLoaded: boolean = false;
   private backgroundImageFailed: boolean = false;
+  private showTutorial: boolean = true;
+  private tutorialStartTime: number = Date.now();
 
   constructor(canvas: HTMLCanvasElement, ctx: CanvasRenderingContext2D, config: GameConfig) {
     this.canvas = canvas;
@@ -100,6 +102,11 @@ export class RenderSystem {
     
     // Layer 3: HUD
     this.renderHUD(ship, score, rapidFireLevel, scoreMultiplier, scoreMultiplierEndTime);
+    
+    // Layer 4: Tutorial Overlay (if active)
+    if (this.showTutorial) {
+      this.renderTutorialOverlay();
+    }
   }
 
   private clearCanvas() {
@@ -169,54 +176,245 @@ export class RenderSystem {
     scoreMultiplier: number = 1, 
     scoreMultiplierEndTime: number = 0
   ) {
-    // HUD text styling
-    this.ctx.fillStyle = '#ffffff';
-    this.ctx.font = '20px Arial, sans-serif';
-    this.ctx.textAlign = 'left';
+    this.ctx.save();
     
-    // Lives (top-left) - show red heart symbols
-    const heartSymbol = '♥';
-    let livesDisplay = '';
-    for (let i = 0; i < ship.lives; i++) {
-      livesDisplay += heartSymbol;
-      if (i < ship.lives - 1) livesDisplay += ' '; // Add space between hearts
+    // Responsive HUD Layout constants
+    const isSmallScreen = this.canvas.width < 600;
+    const padding = isSmallScreen ? 15 : 20;
+    const hudHeight = isSmallScreen ? 50 : 60;
+    const heartSize = isSmallScreen ? 20 : 24;
+    const iconSize = isSmallScreen ? 28 : 32;
+    
+    // === TOP-LEFT: Lives as Heart Icons ===
+    this.renderLives(ship.lives, padding, 40, heartSize);
+    
+    // === TOP-RIGHT: Score ===
+    this.renderScore(score, this.canvas.width - padding, 40);
+    
+    // === TOP-CENTER: Power-up Status with Icons ===
+    this.renderPowerUpStatus(rapidFireLevel, scoreMultiplier, scoreMultiplierEndTime, this.canvas.width / 2, 40, iconSize);
+    
+    // === BOTTOM: Control Instructions (smaller, less intrusive) ===
+    this.renderControlInstructions();
+    
+    this.ctx.restore();
+  }
+
+  private renderLives(lives: number, x: number, y: number, heartSize: number) {
+    this.ctx.save();
+    
+    // Draw individual heart icons
+    for (let i = 0; i < Math.min(lives, 5); i++) { // Cap at 5 hearts max
+      const heartX = x + i * (heartSize + 8);
+      this.renderHeartIcon(heartX, y, heartSize, true); // Filled heart
     }
-    this.ctx.fillStyle = '#ff0000'; // Red color for hearts
-    this.ctx.fillText(livesDisplay, 20, 30);
-    this.ctx.fillStyle = '#ffffff'; // Reset to white for other text
     
-    // Score (top-right area)
+    // Draw empty hearts for remaining slots up to max
+    const maxLives = this.config.ship.lives.max || 5;
+    for (let i = lives; i < maxLives; i++) {
+      const heartX = x + i * (heartSize + 8);
+      this.renderHeartIcon(heartX, y, heartSize, false); // Empty heart
+    }
+    
+    this.ctx.restore();
+  }
+
+  private renderHeartIcon(x: number, y: number, size: number, filled: boolean) {
+    this.ctx.save();
+    this.ctx.translate(x, y);
+    
+    // Draw heart shape
+    const scale = size / 20; // Base size of 20px
+    this.ctx.scale(scale, scale);
+    
+    this.ctx.beginPath();
+    this.ctx.moveTo(0, -3);
+    this.ctx.bezierCurveTo(-5, -10, -15, -5, 0, 5);
+    this.ctx.bezierCurveTo(15, -5, 5, -10, 0, -3);
+    this.ctx.closePath();
+    
+    if (filled) {
+      // Filled heart with gradient
+      const gradient = this.ctx.createLinearGradient(-8, -8, 8, 8);
+      gradient.addColorStop(0, '#ff6b6b');
+      gradient.addColorStop(1, '#ee5a52');
+      this.ctx.fillStyle = gradient;
+      this.ctx.fill();
+      
+      // Subtle highlight
+      this.ctx.strokeStyle = '#ffaaaa';
+      this.ctx.lineWidth = 0.5;
+      this.ctx.stroke();
+    } else {
+      // Empty heart outline
+      this.ctx.strokeStyle = '#666666';
+      this.ctx.lineWidth = 1.5;
+      this.ctx.stroke();
+    }
+    
+    this.ctx.restore();
+  }
+
+  private renderScore(score: number, x: number, y: number) {
+    this.ctx.save();
+    const isSmallScreen = this.canvas.width < 600;
+    this.ctx.font = `bold ${isSmallScreen ? '20px' : '24px'} "Segoe UI", Arial, sans-serif`;
+    this.ctx.fillStyle = '#ffffff';
     this.ctx.textAlign = 'right';
-    this.ctx.fillText(`Score: ${score}`, this.canvas.width - 20, 30);
+    this.ctx.textBaseline = 'middle';
     
-    // Power-up indicators (top-center)
-    this.ctx.textAlign = 'center';
-    const centerX = this.canvas.width / 2;
-    let yOffset = 30;
+    // Add subtle shadow
+    this.ctx.shadowColor = 'rgba(0,0,0,0.5)';
+    this.ctx.shadowBlur = 2;
+    this.ctx.shadowOffsetX = 1;
+    this.ctx.shadowOffsetY = 1;
     
-    // Rapid Fire indicator
+    this.ctx.fillText(`Score: ${score.toLocaleString()}`, x, y);
+    this.ctx.restore();
+  }
+
+  private renderPowerUpStatus(rapidFireLevel: number, scoreMultiplier: number, scoreMultiplierEndTime: number, centerX: number, y: number, iconSize: number) {
+    this.ctx.save();
+    
+    let xOffset = 0;
+    const spacing = iconSize + 20;
+    
+    // Count active power-ups to center them
+    let activePowerUps = 0;
+    if (rapidFireLevel > 0) activePowerUps++;
+    if (scoreMultiplier > 1 && scoreMultiplierEndTime > 0) activePowerUps++;
+    
+    const startX = centerX - (activePowerUps * spacing) / 2 + iconSize / 2;
+    
+    // Rapid Fire indicator with icon
     if (rapidFireLevel > 0) {
-      this.ctx.fillStyle = '#ffff00'; // Yellow
-      this.ctx.fillText(`⚡ Rapid Fire Lvl ${rapidFireLevel}`, centerX - 100, yOffset);
-      this.ctx.fillStyle = '#ffffff';
+      this.renderPowerUpIcon(startX + xOffset, y, '⚡', '#00FFFF', `RF ${rapidFireLevel}`, 0);
+      xOffset += spacing;
     }
     
     // Score Multiplier indicator with countdown
     if (scoreMultiplier > 1 && scoreMultiplierEndTime > 0) {
       const remainingTime = Math.max(0, (scoreMultiplierEndTime - Date.now()) / 1000);
-      this.ctx.fillStyle = '#ffd700'; // Gold
-      this.ctx.fillText(`★ ${scoreMultiplier}x Score (${remainingTime.toFixed(1)}s)`, centerX + 100, yOffset);
-      this.ctx.fillStyle = '#ffffff';
+      const progress = remainingTime / 10; // Assuming 10 second duration
+      this.renderPowerUpIcon(startX + xOffset, y, '★', '#FFD700', `${scoreMultiplier}x`, progress);
+      xOffset += spacing;
     }
     
-    // Controls help (bottom)
-    this.ctx.textAlign = 'center';
-    this.ctx.font = '14px Arial, sans-serif';
-    this.ctx.fillStyle = '#aaaaaa';
-    this.ctx.fillText('Arrow Keys or WASD to move', this.canvas.width / 2, this.canvas.height - 40);
-    this.ctx.fillText('Touch and drag on mobile', this.canvas.width / 2, this.canvas.height - 20);
+    this.ctx.restore();
+  }
+
+  private renderPowerUpIcon(x: number, y: number, symbol: string, color: string, label: string, progress: number) {
+    this.ctx.save();
     
-    // Reset text alignment
-    this.ctx.textAlign = 'left';
+    const radius = 20;
+    
+    // Background circle
+    this.ctx.beginPath();
+    this.ctx.arc(x, y, radius, 0, Math.PI * 2);
+    this.ctx.fillStyle = 'rgba(0,0,0,0.7)';
+    this.ctx.fill();
+    this.ctx.strokeStyle = color;
+    this.ctx.lineWidth = 2;
+    this.ctx.stroke();
+    
+    // Progress indicator (if applicable)
+    if (progress > 0) {
+      this.ctx.beginPath();
+      this.ctx.arc(x, y, radius + 3, -Math.PI / 2, -Math.PI / 2 + (progress * 2 * Math.PI));
+      this.ctx.strokeStyle = color;
+      this.ctx.lineWidth = 3;
+      this.ctx.stroke();
+    }
+    
+    // Icon symbol
+    this.ctx.font = 'bold 20px Arial';
+    this.ctx.fillStyle = color;
+    this.ctx.textAlign = 'center';
+    this.ctx.textBaseline = 'middle';
+    this.ctx.fillText(symbol, x, y - 2);
+    
+    // Label below
+    this.ctx.font = 'bold 12px Arial';
+    this.ctx.fillStyle = '#ffffff';
+    this.ctx.fillText(label, x, y + radius + 15);
+    
+    this.ctx.restore();
+  }
+
+  private renderControlInstructions() {
+    this.ctx.save();
+    this.ctx.font = '12px "Segoe UI", Arial, sans-serif';
+    this.ctx.fillStyle = 'rgba(255,255,255,0.6)';
+    this.ctx.textAlign = 'center';
+    this.ctx.textBaseline = 'bottom';
+    
+    this.ctx.fillText('Move: Arrow Keys / WASD / Touch & Drag', this.canvas.width / 2, this.canvas.height - 25);
+    this.ctx.fillText('Auto-Fire: Enabled', this.canvas.width / 2, this.canvas.height - 10);
+    
+    this.ctx.restore();
+  }
+
+  public dismissTutorial() {
+    this.showTutorial = false;
+  }
+
+  public isTutorialActive(): boolean {
+    return this.showTutorial;
+  }
+
+  private renderTutorialOverlay() {
+    this.ctx.save();
+    
+    // Semi-transparent dark overlay
+    this.ctx.fillStyle = 'rgba(0, 0, 0, 0.8)';
+    this.ctx.fillRect(0, 0, this.canvas.width, this.canvas.height);
+    
+    // Responsive tutorial panel
+    const isSmallScreen = this.canvas.width < 600 || this.canvas.height < 500;
+    const panelWidth = Math.min(isSmallScreen ? 350 : 400, this.canvas.width - 40);
+    const panelHeight = isSmallScreen ? 220 : 250;
+    const panelX = (this.canvas.width - panelWidth) / 2;
+    const panelY = (this.canvas.height - panelHeight) / 2;
+    
+    // Panel background with rounded corners
+    this.ctx.fillStyle = 'rgba(20, 30, 50, 0.95)';
+    this.ctx.strokeStyle = '#4a90e2';
+    this.ctx.lineWidth = 2;
+    
+    this.ctx.beginPath();
+    this.ctx.roundRect(panelX, panelY, panelWidth, panelHeight, 15);
+    this.ctx.fill();
+    this.ctx.stroke();
+    
+    // Tutorial content
+    this.ctx.fillStyle = '#ffffff';
+    this.ctx.textAlign = 'center';
+    this.ctx.textBaseline = 'middle';
+    
+    // Title (responsive font size)
+    this.ctx.font = `bold ${isSmallScreen ? '22px' : '28px'} "Segoe UI", Arial, sans-serif`;
+    this.ctx.fillText('Welcome to Space Defender!', panelX + panelWidth / 2, panelY + (isSmallScreen ? 40 : 50));
+    
+    // Instructions (responsive font size)
+    this.ctx.font = `${isSmallScreen ? '14px' : '18px'} "Segoe UI", Arial, sans-serif`;
+    const centerX = panelX + panelWidth / 2;
+    let yPos = panelY + (isSmallScreen ? 75 : 90);
+    const lineSpacing = isSmallScreen ? 25 : 30;
+    
+    this.ctx.fillText('🎮 Move with Arrow Keys or WASD', centerX, yPos);
+    yPos += lineSpacing;
+    this.ctx.fillText('📱 Touch and drag on mobile devices', centerX, yPos);
+    yPos += lineSpacing;
+    this.ctx.fillText('🔫 Auto-fire is enabled - just focus on moving!', centerX, yPos);
+    yPos += lineSpacing;
+    this.ctx.fillText('⭐ Collect power-ups to enhance your ship', centerX, yPos);
+    
+    // Dismiss instruction with pulsing effect
+    const pulseAlpha = 0.6 + 0.4 * Math.sin(Date.now() * 0.005);
+    this.ctx.fillStyle = `rgba(255, 255, 255, ${pulseAlpha})`;
+    this.ctx.font = `${isSmallScreen ? '14px' : '16px'} "Segoe UI", Arial, sans-serif`;
+    this.ctx.fillText('Click anywhere or press any key to start!', centerX, panelY + panelHeight - (isSmallScreen ? 25 : 30));
+    
+    this.ctx.restore();
   }
 }

@@ -50,6 +50,18 @@ export function startGameLoop(canvas: HTMLCanvasElement, ctx: CanvasRenderingCon
   function update(dt: number, currentTime: number) {
     const input = inputSystem.getInputState();
     
+    // Handle tutorial dismissal
+    if (renderSystem.isTutorialActive()) {
+      // Dismiss tutorial on any input
+      if (input.movement.x !== 0 || input.movement.y !== 0 || 
+          inputSystem.hasAnyKeyPressed() || inputSystem.consumeMouseClick()) {
+        renderSystem.dismissTutorial();
+        console.log('[DEBUG] Tutorial dismissed by user input');
+      }
+      // Don't update game logic while tutorial is active
+      return;
+    }
+    
     // Debug power-up timing every 5 seconds
     if (currentTime % 5000 < 100) {
       const timeSinceLastPowerUp = currentTime - lastPowerUpSpawnTime;

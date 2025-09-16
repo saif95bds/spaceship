@@ -13,11 +13,19 @@ export class InputSystem {
   private touchMovementDelta: { x: number; y: number } = { x: 0, y: 0 };
   private isPaused = false;
   private canvas: HTMLCanvasElement;
+  private mouseClicked: boolean = false;
 
   constructor(canvas: HTMLCanvasElement) {
     this.canvas = canvas;
     this.setupKeyboardListeners();
     this.setupTouchListeners();
+    this.setupMouseListeners();
+  }
+
+  private setupMouseListeners() {
+    this.canvas.addEventListener('click', () => {
+      this.mouseClicked = true;
+    });
   }
 
   private setupKeyboardListeners() {
@@ -107,5 +115,19 @@ export class InputSystem {
       movement: { x, y },
       isPaused: this.isPaused
     };
+  }
+
+  public hasAnyKeyPressed(): boolean {
+    return this.keys.size > 0;
+  }
+
+  public hasAnyInput(): boolean {
+    return this.keys.size > 0 || this.currentTouchPos !== null || this.mouseClicked;
+  }
+
+  public consumeMouseClick(): boolean {
+    const clicked = this.mouseClicked;
+    this.mouseClicked = false;
+    return clicked;
   }
 }

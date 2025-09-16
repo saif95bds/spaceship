@@ -24,11 +24,28 @@ export class PowerUp {
   }
 
   private loadImage() {
-    // Skip image loading entirely for now since assets don't exist
-    // Force use of fallback rendering
-    console.log(`[DEBUG] Skipping image loading for ${this.type}, using fallback rendering`);
-    this.imageLoaded = false;
-    this.image = null;
+    // Load appropriate power-up sprite
+    const imageMap = {
+      '+1life': 'assets/powerups/life.png',
+      'rapidFire': 'assets/powerups/rapidfire.png',
+      'scoreMultiplier': 'assets/powerups/multiplier.png'
+    };
+
+    const imagePath = imageMap[this.type];
+    console.log(`[DEBUG] Loading power-up image: ${imagePath} for type ${this.type}`);
+    
+    this.image = new Image();
+    this.image.onload = () => {
+      this.imageLoaded = true;
+      console.log(`[DEBUG] ✅ Power-up image loaded successfully: ${imagePath}`);
+    };
+    
+    this.image.onerror = () => {
+      console.warn(`[DEBUG] ❌ Failed to load power-up image: ${imagePath}, using fallback`);
+      this.imageLoaded = false;
+    };
+    
+    this.image.src = imagePath;
   }
 
   public update(deltaTime: number) {
@@ -50,21 +67,49 @@ export class PowerUp {
     return Math.max(baseRadius, 20); // Match the visual radius used in rendering
   }
 
-  public render(ctx: CanvasRenderingContext2D) {
-    const isVisible = this.y > -this.height/2 && this.y < ctx.canvas.height + this.height/2;
-    // Only log occasionally to avoid spam
-    if (Math.random() < 0.02) {
-      console.log(`[DEBUG] PowerUp.render: ${this.type} at (${this.x.toFixed(1)}, ${this.y.toFixed(1)}), imageLoaded: ${this.imageLoaded}, visible: ${isVisible}`);
+  private getGlowColor(): string {
+    switch (this.type) {
+      case '+1life':
+        return '#FF4444'; // Bright red for life
+      case 'rapidFire':
+        return '#00FFFF'; // Cyan for rapid fire
+      case 'scoreMultiplier':
+        return '#FFD700'; // Gold for score multiplier
+      default:
+        return '#FFFFFF';
     }
+  }
+
+  public render(ctx: CanvasRenderingContext2D) {
+    ctx.save();
+    
     if (this.imageLoaded && this.image) {
-      // Draw power-up image
-      console.log(`[DEBUG] Drawing image at (${(this.x - this.width / 2).toFixed(1)}, ${(this.y - this.height / 2).toFixed(1)}) size: ${this.width}x${this.height}`);
+      // Draw power-up image with slight glow effect
+      ctx.shadowColor = this.getGlowColor();
+      ctx.shadowBlur = 10;
+      ctx.shadowOffsetX = 0;
+      ctx.shadowOffsetY = 0;
+      
       ctx.drawImage(
         this.image,
         this.x - this.width / 2,
         this.y - this.height / 2,
         this.width,
         this.height
+      );
+      
+      // Add pulsing border effect
+      const time = Date.now() * 0.003;
+      const pulseAlpha = 0.3 + 0.4 * Math.sin(time);
+      ctx.shadowBlur = 0;
+      ctx.strokeStyle = this.getGlowColor();
+      ctx.globalAlpha = pulseAlpha;
+      ctx.lineWidth = 2;
+      ctx.strokeRect(
+        this.x - this.width / 2 - 2,
+        this.y - this.height / 2 - 2,
+        this.width + 4,
+        this.height + 4
       );
     } else {
       // Fallback: draw colored circle with text
@@ -123,7 +168,8 @@ export class PowerUp {
       // Draw text with outline
       ctx.strokeText(text, this.x, this.y);
       ctx.fillText(text, this.x, this.y);
-      ctx.restore();
     }
+    
+    ctx.restore();
   }
 }
