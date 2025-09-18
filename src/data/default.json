@@ -16,7 +16,7 @@
   },
   "difficulty": {
     "make_it_difficult": true,
-    "delayBeforeIncreaseSeconds": 30,
+    "delayBeforeIncreaseSeconds": 60,
     "speedIncreaseIntervalSeconds": 2,
     "speedMultiplierPerIncrease": 1.5,
     "maxSpeedMultiplier": 10.0,
@@ -65,7 +65,7 @@
   },
   "projectile": {
     "speed": 900,
-    "fireRate": 2.0,
+    "fireRate": 5.0,
     "sprite": "assets/projectiles/bullet.png",
     "impactFx": { "enabled": true, "particles": true, "flash": true, "durationMs": 150 }
   },
@@ -121,10 +121,10 @@
       "maxLevel": 4,
       "skins": { "1": "assets/ships/base_rf1.png", "2": "assets/ships/base_rf2.png", "3": "assets/ships/base_rf3.png", "4": "assets/ships/base_rf4.png" },
       "levels": {
-        "1": { "fireRate": 6.0, "barrels": 2 },
-        "2": { "fireRate": 8.0, "barrels": 3 },
-        "3": { "fireRate": 10.0, "barrels": 4 },
-        "4": { "fireRate": 12.0, "barrels": 5 }
+        "1": { "fireRate": 6.0, "barrels": 3 },
+        "2": { "fireRate": 8.0, "barrels": 4 },
+        "3": { "fireRate": 10.0, "barrels": 5 },
+        "4": { "fireRate": 12.0, "barrels": 8 }
       }
     },
     "scoreMultiplier": { "mult": 2.0, "durationMs": 10000, "showCountdown": true }
@@ -162,6 +162,36 @@
       "outlineColor": "#000000",
       "outlineWidth": 2,
       "alpha": 0.8
+    }
+  },
+  "sound": {
+    "enabled": true,
+    "masterVolume": 7,
+    "showHudToggle": true,
+    "files": {
+      "fire": {
+        "primary": "assets/sounds/fire.wav",
+        "fallbacks": ["assets/sounds/fire.mp3", "assets/sounds/fire.ogg"],
+        "synthesize": true
+      },
+      "explosion": {
+        "primary": "assets/sounds/explosion.wav",
+        "fallbacks": ["assets/sounds/explosion.mp3", "assets/sounds/explosion.ogg"],
+        "synthesize": true
+      }
+    },
+    "fireRates": {
+      "basic": 220,
+      "base_rf1": 160,
+      "base_rf2": 120,
+      "base_rf3": 90,
+      "base_rf4": 70
+    },
+    "volumes": {
+      "fire": 0.1,
+      "explosionLarge": 1.0,
+      "explosionMedium": 0.8,
+      "explosionSmall": 0.6
     }
   }
 }

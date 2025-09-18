@@ -63,6 +63,7 @@ export class RenderSystem {
   private fireworksImage: HTMLImageElement | null = null;
   private fireworksImageLoaded = false;
   private retryButtonBounds: { x: number; y: number; width: number; height: number } | null = null;
+  private soundToggleBounds: { x: number; y: number; width: number; height: number } | null = null;
 
   constructor(canvas: HTMLCanvasElement, config: GameConfig) {
     this.canvas = canvas;
@@ -391,7 +392,8 @@ export class RenderSystem {
     scoreMultiplier: number = 1,
     scoreMultiplierEndTime: number = 0,
     gameOver: boolean = false,
-    currentGameTime: number = 0
+    currentGameTime: number = 0,
+    soundEnabled: boolean = true
   ) {
     this.time += deltaTime;
     this.updateScreenShake(deltaTime);
@@ -411,7 +413,7 @@ export class RenderSystem {
     this.renderEntities(ship, projectiles, meteoroids, powerUps, ads, particleSystem);
     
     // Layer 3: HUD
-    this.renderHUD(ship, score, rapidFireLevel, scoreMultiplier, scoreMultiplierEndTime, currentGameTime);
+    this.renderHUD(ship, score, rapidFireLevel, scoreMultiplier, scoreMultiplierEndTime, currentGameTime, soundEnabled);
     
     // Restore transform before UI overlays
     this.ctx.restore();
@@ -679,7 +681,8 @@ export class RenderSystem {
     rapidFireLevel: number = 0, 
     scoreMultiplier: number = 1, 
     scoreMultiplierEndTime: number = 0,
-    gameTime: number = 0
+    gameTime: number = 0,
+    soundEnabled: boolean = true
   ) {
     this.ctx.save();
     
@@ -689,13 +692,32 @@ export class RenderSystem {
     const hudHeight = isSmallScreen ? 50 : 60;
     const heartSize = isSmallScreen ? 20 : 24;
     const iconSize = isSmallScreen ? 28 : 32;
+    this.soundToggleBounds = null;
     
     // === TOP-LEFT: Lives as Heart Icons ===
     this.renderLives(ship.lives, padding, 40, heartSize);
     
     // === TOP-RIGHT: Score and Time ===
-    this.renderScore(score, this.canvas.width - padding, 25);
-    this.renderGameTime(gameTime, this.canvas.width - padding, 50);
+    const toggleSpacing = isSmallScreen ? 12 : 16;
+    const rightEdge = this.config.sound.showHudToggle
+      ? this.canvas.width - padding - iconSize - toggleSpacing
+      : this.canvas.width - padding;
+    this.renderScore(score, rightEdge, 25);
+    this.renderGameTime(gameTime, rightEdge, 50);
+
+    if (this.config.sound.showHudToggle) {
+      const toggleX = this.canvas.width - padding - iconSize;
+      const toggleY = padding;
+      this.renderSoundToggle(toggleX, toggleY, iconSize, soundEnabled);
+
+      const clickableSize = Math.max(48, iconSize + toggleSpacing * 2);
+      this.soundToggleBounds = {
+        x: toggleX + iconSize / 2 - clickableSize / 2,
+        y: toggleY + iconSize / 2 - clickableSize / 2,
+        width: clickableSize,
+        height: clickableSize
+      };
+    }
     
     // === TOP-CENTER: Power-up Status with Icons ===
     this.renderPowerUpStatus(rapidFireLevel, scoreMultiplier, scoreMultiplierEndTime, this.canvas.width / 2, 40, iconSize);
@@ -800,6 +822,66 @@ export class RenderSystem {
     const timeString = `${minutes.toString().padStart(2, '0')}:${seconds.toString().padStart(2, '0')}`;
     
     this.ctx.fillText(`Time: ${timeString}`, x, y);
+    this.ctx.restore();
+  }
+
+  private renderSoundToggle(x: number, y: number, size: number, enabled: boolean) {
+    this.ctx.save();
+
+    const centerX = x + size / 2;
+    const centerY = y + size / 2;
+    const radius = size / 2;
+
+    // Background circle
+    this.ctx.beginPath();
+    this.ctx.arc(centerX, centerY, radius, 0, Math.PI * 2);
+    this.ctx.fillStyle = enabled ? 'rgba(46, 204, 113, 0.85)' : 'rgba(70, 70, 70, 0.85)';
+    this.ctx.fill();
+
+    // Border outline
+    this.ctx.lineWidth = 2;
+    this.ctx.strokeStyle = enabled ? '#2ecc71' : '#bbbbbb';
+    this.ctx.stroke();
+
+    // Speaker body
+    const bodyWidth = size * 0.28;
+    const bodyHeight = size * 0.5;
+    const hornWidth = size * 0.22;
+    const bodyX = centerX - bodyWidth * 0.6;
+
+    this.ctx.fillStyle = '#ffffff';
+    this.ctx.beginPath();
+    this.ctx.moveTo(bodyX - bodyWidth * 0.4, centerY - bodyHeight / 2);
+    this.ctx.lineTo(bodyX, centerY - bodyHeight / 2);
+    this.ctx.lineTo(bodyX + bodyWidth, centerY - bodyHeight * 0.75);
+    this.ctx.lineTo(bodyX + bodyWidth, centerY + bodyHeight * 0.75);
+    this.ctx.lineTo(bodyX, centerY + bodyHeight / 2);
+    this.ctx.lineTo(bodyX - bodyWidth * 0.4, centerY + bodyHeight / 2);
+    this.ctx.closePath();
+    this.ctx.fill();
+
+    this.ctx.lineWidth = 2;
+    this.ctx.lineCap = 'round';
+    this.ctx.strokeStyle = '#ffffff';
+
+    if (enabled) {
+      const waveStartX = bodyX + bodyWidth + hornWidth * 0.1;
+      const waveRadii = [size * 0.25, size * 0.35];
+
+      for (const radiusOffset of waveRadii) {
+        this.ctx.beginPath();
+        this.ctx.arc(waveStartX, centerY, radiusOffset, -Math.PI / 4, Math.PI / 4);
+        this.ctx.stroke();
+      }
+    } else {
+      this.ctx.beginPath();
+      this.ctx.moveTo(centerX - size * 0.05, centerY - size * 0.2);
+      this.ctx.lineTo(centerX + size * 0.2, centerY + size * 0.25);
+      this.ctx.moveTo(centerX - size * 0.05, centerY + size * 0.2);
+      this.ctx.lineTo(centerX + size * 0.2, centerY - size * 0.25);
+      this.ctx.stroke();
+    }
+
     this.ctx.restore();
   }
 
@@ -967,5 +1049,18 @@ export class RenderSystem {
            mouseX <= this.retryButtonBounds.x + this.retryButtonBounds.width &&
            mouseY >= this.retryButtonBounds.y &&
            mouseY <= this.retryButtonBounds.y + this.retryButtonBounds.height;
+  }
+
+  public isSoundToggleClicked(mouseX: number, mouseY: number): boolean {
+    if (!this.config.sound.showHudToggle || !this.soundToggleBounds) {
+      return false;
+    }
+
+    return (
+      mouseX >= this.soundToggleBounds.x &&
+      mouseX <= this.soundToggleBounds.x + this.soundToggleBounds.width &&
+      mouseY >= this.soundToggleBounds.y &&
+      mouseY <= this.soundToggleBounds.y + this.soundToggleBounds.height
+    );
   }
 }

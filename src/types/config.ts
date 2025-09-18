@@ -167,6 +167,42 @@ export interface AdsConfig {
   };
 }
 
+export interface SoundFileEntry {
+  primary: string;
+  fallbacks?: string[];
+  synthesize?: boolean;
+}
+
+export interface SoundFilesConfig {
+  fire: SoundFileEntry;
+  explosion: SoundFileEntry;
+}
+
+export interface SoundFireRatesConfig {
+  basic: number;
+  base_rf1: number;
+  base_rf2: number;
+  base_rf3: number;
+  base_rf4: number;
+  [key: string]: number;
+}
+
+export interface SoundVolumesConfig {
+  fire: number;
+  explosionLarge: number;
+  explosionMedium: number;
+  explosionSmall: number;
+}
+
+export interface SoundConfig {
+  enabled: boolean;
+  masterVolume: number;
+  showHudToggle: boolean;
+  files: SoundFilesConfig;
+  fireRates: SoundFireRatesConfig;
+  volumes: SoundVolumesConfig;
+}
+
 export interface LoggingConfig {
   console_log_enabled: boolean;
   debug_collision: boolean;
@@ -217,4 +253,5 @@ export interface GameConfig {
   assets: AssetsConfig;
   background: BackgroundConfig;
   ads: AdsConfig;
+  sound: SoundConfig;
 }

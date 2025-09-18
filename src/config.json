@@ -8,5 +8,35 @@
   "projectile": {
     "speed": 900,
     "fireRate": 3.0
+  },
+  "sound": {
+    "enabled": true,
+    "masterVolume": 7,
+    "showHudToggle": true,
+    "files": {
+      "fire": {
+        "primary": "assets/sounds/fire.wav",
+        "fallbacks": ["assets/sounds/fire.mp3", "assets/sounds/fire.ogg"],
+        "synthesize": true
+      },
+      "explosion": {
+        "primary": "assets/sounds/explosion.wav",
+        "fallbacks": ["assets/sounds/explosion.mp3", "assets/sounds/explosion.ogg"],
+        "synthesize": true
+      }
+    },
+    "fireRates": {
+      "basic": 220,
+      "base_rf1": 160,
+      "base_rf2": 120,
+      "base_rf3": 90,
+      "base_rf4": 70
+    },
+    "volumes": {
+      "fire": 0.3,
+      "explosionLarge": 1.0,
+      "explosionMedium": 0.6,
+      "explosionSmall": 0.4
+    }
   }
 }

@@ -14,6 +14,8 @@ import { PowerUp, PowerUpType } from '../entities/PowerUp';
 import { Ad } from '../entities/Ad';
 import { GameConfig } from '../types/config';
 import { logger, configureLogging } from '../utils/Logger';
+import { loadSoundPreferences, saveSoundPreferences } from '../utils/soundPreferences';
+import { SoundSystem } from '../systems/sound';
 
 const FIXED_STEP = 1000 / 60; // 60Hz in ms
 
@@ -37,6 +39,18 @@ export function startGameLoop(canvas: HTMLCanvasElement, ctx: CanvasRenderingCon
   let lastUpdate = performance.now();
   let accumulator = 0;
 
+  const storedSoundPreferences = loadSoundPreferences();
+  const soundVolume = storedSoundPreferences?.volume ?? config.sound.masterVolume;
+
+  // Game state
+  let score = 0;
+  let rapidFireLevel = 0;
+  let scoreMultiplier = 1;
+  let scoreMultiplierEndTime = 0;
+  let gameOver = false;
+  let gameOverTime = 0;
+  let soundEnabled = storedSoundPreferences?.enabled ?? config.sound.enabled;
+
   // Initialize systems and entities
   const inputSystem = new InputSystem(canvas);
   const renderSystem = new RenderSystem(canvas, config);
@@ -49,14 +63,9 @@ export function startGameLoop(canvas: HTMLCanvasElement, ctx: CanvasRenderingCon
   const meteoroids: Meteoroid[] = [];
   const powerUps: PowerUp[] = [];
   const ads: Ad[] = [];
-  
-  // Game state
-  let score = 0;
-  let rapidFireLevel = 0;
-  let scoreMultiplier = 1;
-  let scoreMultiplierEndTime = 0;
-  let gameOver = false;
-  let gameOverTime = 0;
+  const soundSystem = new SoundSystem(config.sound, soundEnabled, soundVolume);
+  soundSystem.setEnabled(soundEnabled);
+  soundSystem.setMasterVolume(soundVolume);
   
   // Difficulty state
   let gameStartTime = 0;
@@ -99,7 +108,20 @@ export function startGameLoop(canvas: HTMLCanvasElement, ctx: CanvasRenderingCon
       }
       return;
     }
-    
+
+    const mouseClicked = inputSystem.consumeMouseClick();
+    const mousePos = inputSystem.getMousePosition();
+    if (
+      mouseClicked &&
+      config.sound.showHudToggle &&
+      mousePos &&
+      renderSystem.isSoundToggleClicked(mousePos.x, mousePos.y)
+    ) {
+      soundEnabled = !soundEnabled;
+      soundSystem.setEnabled(soundEnabled);
+      saveSoundPreferences({ enabled: soundEnabled, volume: soundVolume });
+    }
+
     // Initialize game start time
     if (gameStartTime === 0) {
       gameStartTime = currentTime;
@@ -123,6 +145,7 @@ export function startGameLoop(canvas: HTMLCanvasElement, ctx: CanvasRenderingCon
         if (newProjectiles.length > 1) {
           logger.debug(`Fired ${newProjectiles.length} projectiles (multi-barrel)`);
         }
+        soundSystem.playFire(rapidFireLevel);
       }
 
       // Spawn meteoroids with progressive rate increase
@@ -509,6 +532,8 @@ export function startGameLoop(canvas: HTMLCanvasElement, ctx: CanvasRenderingCon
         projectiles.splice(projectileIndex, 1);
       
         if (isDestroyed) {
+          soundSystem.playExplosion(meteoroid.sizeType);
+
           // Create explosion effect
           particleSystem.createExplosionEffect(meteoroid.x, meteoroid.y, meteoroid.size);
           
@@ -602,6 +627,7 @@ export function startGameLoop(canvas: HTMLCanvasElement, ctx: CanvasRenderingCon
         // Create dramatic collision effect
         particleSystem.createExplosionEffect(meteoroid.x, meteoroid.y, meteoroid.size);
         particleSystem.createFireworkBurst(meteoroid.x, meteoroid.y, meteoroid.size);
+        soundSystem.playExplosion(meteoroid.sizeType);
         
         // Strong screen shake for ship collision
         const shakeIntensity = Math.min(meteoroid.size / 6, 15); // Stronger shake for ship hit
@@ -740,7 +766,22 @@ export function startGameLoop(canvas: HTMLCanvasElement, ctx: CanvasRenderingCon
   function render(dt: number, currentTime: number) {
     if (!ctx) return;
     const currentGameTime = gameStartTime > 0 ? currentTime - gameStartTime : 0;
-    renderSystem.render(ship, projectiles, meteoroids, powerUps, ads, particleSystem, dt, score, rapidFireLevel, scoreMultiplier, scoreMultiplierEndTime, gameOver, gameOverTime || currentGameTime);
+    renderSystem.render(
+      ship,
+      projectiles,
+      meteoroids,
+      powerUps,
+      ads,
+      particleSystem,
+      dt,
+      score,
+      rapidFireLevel,
+      scoreMultiplier,
+      scoreMultiplierEndTime,
+      gameOver,
+      gameOverTime || currentGameTime,
+      soundEnabled
+    );
     
     // Render debug information
     if (debugSystem.shouldShowFPS() || debugSystem.shouldShowObjectPoolStats()) {
