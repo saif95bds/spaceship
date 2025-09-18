@@ -2,59 +2,76 @@ import { SoundConfig } from '../types/config';
 
 type SoundKey = 'fire' | 'explosion';
 
-const MAX_POOL_SIZE = 6;
+type AudioContextClass = typeof AudioContext;
 
-function supportsAudio(): boolean {
-  return typeof window !== 'undefined' && typeof Audio !== 'undefined';
-}
-
-function getMimeType(path: string): string | undefined {
-  const extension = path.split('.').pop()?.toLowerCase();
-  if (!extension) {
-    return undefined;
+function getAudioContextConstructor(): AudioContextClass | null {
+  if (typeof window === 'undefined') {
+    return null;
   }
 
-  switch (extension) {
-    case 'wav':
-      return 'audio/wav';
-    case 'mp3':
-      return 'audio/mpeg';
-    case 'ogg':
-      return 'audio/ogg';
-    default:
-      return undefined;
-  }
+  const ctor = window.AudioContext || (window as any).webkitAudioContext;
+  return typeof ctor === 'function' ? ctor : null;
 }
 
 export class SoundSystem {
   private enabled: boolean;
   private masterVolume: number; // 0-10 scale
   private readonly audioSupported: boolean;
-  private readonly sources: Record<SoundKey, string | null> = {
-    fire: null,
-    explosion: null
-  };
-  private readonly pools: Record<SoundKey, HTMLAudioElement[]> = {
+  private readonly sourceCandidates: Record<SoundKey, string[]> = {
     fire: [],
     explosion: []
   };
+  private readonly currentSourceIndex: Record<SoundKey, number> = {
+    fire: 0,
+    explosion: 0
+  };
+  private readonly buffers: Record<SoundKey, AudioBuffer | null> = {
+    fire: null,
+    explosion: null
+  };
+  private readonly loadingPromises: Record<SoundKey, Promise<AudioBuffer | null> | null> = {
+    fire: null,
+    explosion: null
+  };
+  private readonly failed: Record<SoundKey, boolean> = {
+    fire: false,
+    explosion: false
+  };
+  private context: AudioContext | null = null;
+  private masterGain: GainNode | null = null;
   private lastFireTime = 0;
 
   constructor(private readonly config: SoundConfig, initialEnabled: boolean, initialVolume: number) {
-    this.audioSupported = supportsAudio();
+    this.audioSupported = getAudioContextConstructor() !== null;
     this.masterVolume = this.clampVolume(initialVolume);
     this.enabled = this.audioSupported && initialEnabled;
 
     if (this.audioSupported) {
-      this.sources.fire = this.resolveSource(config.files.fire);
-      this.sources.explosion = this.resolveSource(config.files.explosion);
-
-      if (!this.sources.fire && !this.sources.explosion) {
-        // If nothing is available, disable sound silently.
-        this.enabled = false;
-      }
+      this.sourceCandidates.fire = this.collectCandidates(this.config.files.fire);
+      this.sourceCandidates.explosion = this.collectCandidates(this.config.files.explosion);
     } else {
       this.enabled = false;
+    }
+  }
+
+  private collectCandidates(entry: SoundConfig['files']['fire']): string[] {
+    const candidates = [entry.primary, ...(entry.fallbacks ?? [])].filter((value): value is string => Boolean(value));
+    return candidates;
+  }
+
+  private getCurrentSource(key: SoundKey): string | null {
+    const candidates = this.sourceCandidates[key];
+    if (candidates.length === 0) {
+      return null;
+    }
+    const index = Math.min(this.currentSourceIndex[key], candidates.length - 1);
+    return candidates[index] ?? null;
+  }
+
+  private advanceSource(key: SoundKey) {
+    const candidates = this.sourceCandidates[key];
+    if (this.currentSourceIndex[key] < candidates.length - 1) {
+      this.currentSourceIndex[key] += 1;
     }
   }
 
@@ -65,58 +82,29 @@ export class SoundSystem {
     return Math.max(0, Math.min(10, volume));
   }
 
-  private resolveSource(entry: SoundConfig['files']['fire']): string | null {
-    const candidates = [entry.primary, ...(entry.fallbacks ?? [])].filter(Boolean);
-    if (candidates.length === 0) {
-      return null;
-    }
-
-    const audio = new Audio();
-
-    for (const candidate of candidates) {
-      const mime = getMimeType(candidate);
-      if (!mime || audio.canPlayType(mime) !== '') {
-        return candidate;
-      }
-    }
-
-    // As a fallback, return the first candidate even if canPlayType reported false.
-    return candidates[0] ?? null;
-  }
-
-  private acquireAudio(key: SoundKey): HTMLAudioElement | null {
+  private ensureContext(): AudioContext | null {
     if (!this.audioSupported) {
       return null;
     }
 
-    const source = this.sources[key];
-    if (!source) {
-      return null;
-    }
-
-    const pool = this.pools[key];
-
-    for (const audio of pool) {
-      if (audio.paused || audio.ended) {
-        if (!audio.paused) {
-          audio.pause();
-        }
-        audio.currentTime = 0;
-        return audio;
+    if (!this.context) {
+      const Ctor = getAudioContextConstructor();
+      if (!Ctor) {
+        return null;
       }
+      this.context = new Ctor();
+      this.masterGain = this.context.createGain();
+      this.masterGain.gain.value = this.enabled ? this.getNormalizedMasterVolume() : 0;
+      this.masterGain.connect(this.context.destination);
     }
 
-    if (pool.length >= MAX_POOL_SIZE) {
-      const audio = pool[0];
-      audio.pause();
-      audio.currentTime = 0;
-      return audio;
+    if (this.context.state === 'suspended') {
+      void this.context.resume().catch(() => {
+        /* ignore resume failure */
+      });
     }
 
-    const audio = new Audio(source);
-    audio.preload = 'auto';
-    pool.push(audio);
-    return audio;
+    return this.context;
   }
 
   private getNormalizedMasterVolume(): number {
@@ -124,21 +112,11 @@ export class SoundSystem {
   }
 
   private applyVolume(baseVolume: number): number {
+    if (!this.enabled) {
+      return 0;
+    }
     const normalizedBase = Math.max(0, Math.min(1, baseVolume));
     return Math.max(0, Math.min(1, normalizedBase * this.getNormalizedMasterVolume()));
-  }
-
-  private stopAll() {
-    if (!this.audioSupported) {
-      return;
-    }
-
-    for (const key of Object.keys(this.pools) as SoundKey[]) {
-      for (const audio of this.pools[key]) {
-        audio.pause();
-        audio.currentTime = 0;
-      }
-    }
   }
 
   private canPlay(): boolean {
@@ -154,6 +132,103 @@ export class SoundSystem {
     return Math.max(30, raw);
   }
 
+  private loadBuffer(key: SoundKey): Promise<AudioBuffer | null> {
+    if (!this.audioSupported) {
+      return Promise.resolve(null);
+    }
+
+    if (this.buffers[key]) {
+      return Promise.resolve(this.buffers[key]);
+    }
+
+    if (this.loadingPromises[key]) {
+      return this.loadingPromises[key]!;
+    }
+
+    if (this.failed[key]) {
+      return Promise.resolve(null);
+    }
+
+    const sourcePath = this.getCurrentSource(key);
+    if (!sourcePath) {
+      this.failed[key] = true;
+      return Promise.resolve(null);
+    }
+
+    const context = this.ensureContext();
+    if (!context) {
+      this.failed[key] = true;
+      return Promise.resolve(null);
+    }
+
+    const promise = fetch(sourcePath)
+      .then((response) => {
+        if (!response.ok) {
+          throw new Error(`Failed to fetch sound asset: ${sourcePath}`);
+        }
+        return response.arrayBuffer();
+      })
+      .then((arrayBuffer) => context.decodeAudioData(arrayBuffer))
+      .then((buffer) => {
+        this.buffers[key] = buffer;
+        return buffer;
+      })
+      .catch((error) => {
+        console.warn(`Failed to load sound buffer for ${key}:`, error);
+        this.advanceSource(key);
+        const nextSource = this.getCurrentSource(key);
+        this.loadingPromises[key] = null;
+        if (!nextSource) {
+          this.failed[key] = true;
+          return null;
+        }
+        return this.loadBuffer(key);
+      })
+      .finally(() => {
+        this.loadingPromises[key] = null;
+      });
+
+    this.loadingPromises[key] = promise;
+    return promise;
+  }
+
+  private playBuffer(key: SoundKey, baseVolume: number, playbackRate: number): void {
+    if (!this.canPlay()) {
+      return;
+    }
+
+    const context = this.ensureContext();
+    if (!context || !this.masterGain) {
+      return;
+    }
+
+    this.loadBuffer(key).then((buffer) => {
+      if (!buffer) {
+        return;
+      }
+
+      if (!this.enabled) {
+        return;
+      }
+
+      const source = context.createBufferSource();
+      source.buffer = buffer;
+      source.playbackRate.value = playbackRate;
+
+      const gainNode = context.createGain();
+      gainNode.gain.value = this.applyVolume(baseVolume);
+
+      source.connect(gainNode);
+      gainNode.connect(this.masterGain!);
+
+      try {
+        source.start();
+      } catch (error) {
+        console.warn(`Failed to play ${key} sound:`, error);
+      }
+    });
+  }
+
   public setEnabled(enabled: boolean): void {
     const shouldEnable = this.audioSupported && enabled;
     if (this.enabled === shouldEnable) {
@@ -161,8 +236,12 @@ export class SoundSystem {
     }
     this.enabled = shouldEnable;
 
-    if (!this.enabled) {
-      this.stopAll();
+    if (this.masterGain) {
+      this.masterGain.gain.value = shouldEnable ? this.getNormalizedMasterVolume() : 0;
+    }
+
+    if (shouldEnable) {
+      this.ensureContext();
     }
   }
 
@@ -172,10 +251,13 @@ export class SoundSystem {
 
   public setMasterVolume(volume: number): void {
     this.masterVolume = this.clampVolume(volume);
+    if (this.masterGain && this.enabled) {
+      this.masterGain.gain.value = this.getNormalizedMasterVolume();
+    }
   }
 
   public playFire(rapidFireLevel: number): void {
-    if (!this.canPlay()) {
+    if (!this.enabled || !this.audioSupported) {
       return;
     }
 
@@ -187,30 +269,11 @@ export class SoundSystem {
     }
 
     this.lastFireTime = now;
-
-    const audio = this.acquireAudio('fire');
-    if (!audio) {
-      return;
-    }
-
-    audio.volume = this.applyVolume(this.config.volumes.fire);
-    audio.playbackRate = 1;
-
-    try {
-      audio.currentTime = 0;
-      void audio.play();
-    } catch (error) {
-      console.warn('Failed to play fire sound:', error);
-    }
+    this.playBuffer('fire', this.config.volumes.fire, 1);
   }
 
   public playExplosion(sizeType: 'L' | 'M' | 'S'): void {
-    if (!this.canPlay()) {
-      return;
-    }
-
-    const audio = this.acquireAudio('explosion');
-    if (!audio) {
+    if (!this.enabled || !this.audioSupported) {
       return;
     }
 
@@ -220,14 +283,8 @@ export class SoundSystem {
         ? this.config.volumes.explosionMedium
         : this.config.volumes.explosionSmall;
 
-    audio.volume = this.applyVolume(baseVolume);
-    audio.playbackRate = sizeType === 'S' ? 1.25 : sizeType === 'M' ? 1.1 : 1;
-
-    try {
-      audio.currentTime = 0;
-      void audio.play();
-    } catch (error) {
-      console.warn('Failed to play explosion sound:', error);
-    }
+    const playbackRate = sizeType === 'S' ? 1.25 : sizeType === 'M' ? 1.1 : 1;
+    this.playBuffer('explosion', baseVolume, playbackRate);
   }
+
 }
