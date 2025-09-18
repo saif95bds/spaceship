@@ -4,6 +4,7 @@ node_modules/
 # Vite build output
 dist/
 spaceship.zip
+ToDo.txt
 
 #gen AI inputs
 mvp.md

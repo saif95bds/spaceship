@@ -184,8 +184,8 @@
       "basic": 220,
       "base_rf1": 160,
       "base_rf2": 120,
-      "base_rf3": 90,
-      "base_rf4": 70
+      "base_rf3": 80,
+      "base_rf4": 40
     },
     "volumes": {
       "fire": 0.1,
