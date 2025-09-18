@@ -40,6 +40,7 @@ export class SoundSystem {
   private context: AudioContext | null = null;
   private masterGain: GainNode | null = null;
   private lastFireTime = 0;
+  private isUnlocked = false;
 
   constructor(private readonly config: SoundConfig, initialEnabled: boolean, initialVolume: number) {
     this.audioSupported = getAudioContextConstructor() !== null;
@@ -105,6 +106,18 @@ export class SoundSystem {
     }
 
     return this.context;
+  }
+
+  private resumeContext() {
+    if (!this.context) {
+      return;
+    }
+
+    if (this.context.state === 'suspended') {
+      void this.context.resume().catch(() => {
+        /* ignore resume failure */
+      });
+    }
   }
 
   private getNormalizedMasterVolume(): number {
@@ -242,6 +255,7 @@ export class SoundSystem {
 
     if (shouldEnable) {
       this.ensureContext();
+      this.resumeContext();
     }
   }
 
@@ -287,4 +301,29 @@ export class SoundSystem {
     this.playBuffer('explosion', baseVolume, playbackRate);
   }
 
+  public registerUnlockOn(canvas: HTMLCanvasElement | null): void {
+    if (!this.audioSupported || this.isUnlocked || !canvas) {
+      return;
+    }
+
+    const unlock = () => {
+      if (this.isUnlocked) {
+        return;
+      }
+      this.isUnlocked = true;
+      this.ensureContext();
+      this.resumeContext();
+      cleanup();
+    };
+
+    const cleanup = () => {
+      canvas.removeEventListener('pointerdown', unlock);
+      canvas.removeEventListener('touchstart', unlock);
+      window.removeEventListener('keydown', unlock);
+    };
+
+    canvas.addEventListener('pointerdown', unlock, { once: true });
+    canvas.addEventListener('touchstart', unlock, { once: true });
+    window.addEventListener('keydown', unlock, { once: true });
+  }
 }

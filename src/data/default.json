@@ -150,8 +150,8 @@
   "background": { "image": "assets/backgrounds/nebula.png", "fallback": { "type": "starfield", "density": 0.002 } },
   "ads": {
     "enabled": true,
-    "spawnIntervalSeconds": 3,
-    "fallSpeed": 500,
+    "spawnIntervalSeconds": 5,
+    "fallSpeed": 800,
     "texts": [
       "Joy Bangla",
       "জয় বাংলা"
@@ -181,11 +181,11 @@
       }
     },
     "fireRates": {
-      "basic": 500,
-      "base_rf1": 300,
-      "base_rf2": 200,
-      "base_rf3": 100,
-      "base_rf4": 80
+      "basic": 900,
+      "base_rf1": 500,
+      "base_rf2": 300,
+      "base_rf3": 150,
+      "base_rf4": 90
     },
     "volumes": {
       "fire": 0.1,

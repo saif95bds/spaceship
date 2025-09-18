@@ -66,6 +66,7 @@ export function startGameLoop(canvas: HTMLCanvasElement, ctx: CanvasRenderingCon
   const soundSystem = new SoundSystem(config.sound, soundEnabled, soundVolume);
   soundSystem.setEnabled(soundEnabled);
   soundSystem.setMasterVolume(soundVolume);
+  soundSystem.registerUnlockOn(canvas);
   
   // Difficulty state
   let gameStartTime = 0;
